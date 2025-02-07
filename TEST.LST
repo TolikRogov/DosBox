@@ -1,0 +1,64 @@
+Turbo Assembler	 Version 4.1	    02/04/25 20:29:52	    Page 1
+test.asm
+
+
+
+      1				     ;-----------------------------------------------------------------------------
+      2				     ;		     It	is one of the most terrible thing in the world.
+      3				     ;			     @Rogov Anatoliy 04.02.2025	19:39:..
+      4				     ;-----------------------------------------------------------------------------
+      5	0000			     .model tiny			     ;Set the model with one memory segment
+      6									     ;less then	64 Kb
+      7	0000			     .code				     ;Start the	block of programm code
+      8				     org 100h				     ;Move code	block to 100h address
+      9	0100			     Start:				     ;Begining label of	code
+     10	0100  B4 09				     mov ah, 09h	     ;ah = puts(String)
+     11	0102  BA 010Cr				     mov dx, offset String   ;dx = &String
+     12	0105  CD 21				     int 21h		     ;system call manager
+     13
+     14	0107  B8 4C00				     mov ax, 4c00h	     ;ax = exit(0)
+     15	010A  CD 21				     int 21h		     ;system call manager
+     16
+     17	      =	0dh, 0ah	     ENDL	     equ 0dh, 0ah	     ;Macros to	new line
+     18
+     19	010C  52 54 52 54 52 54	52+  String db 'RTRTRTRTRTRTRTRTRTRTRTRTRTRTRTRT', ENDL, '$'
+     20	      54 52 54 52 54 52	54+
+     21	      52 54 52 54 52 54	52+
+     22	      54 52 54 52 54 52	54+
+     23	      52 54 52 54 0D 0A	24
+     24
+     25				     end	     Start		     ;End programm or return to	Start
+Turbo Assembler	 Version 4.1	    02/04/25 20:29:52	    Page 2
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "02/04/25"
+??FILENAME			  Text	 "test	  "
+??TIME				  Text	 "20:29:52"
+??VERSION			  Number 040A
+@32BIT				  Text	 0
+@CODE				  Text	 DGROUP
+@CODESIZE			  Text	 0
+@CPU				  Text	 0101H
+@CURSEG				  Text	 _TEXT
+@DATA				  Text	 DGROUP
+@DATASIZE			  Text	 0
+@FILENAME			  Text	 TEST
+@INTERFACE			  Text	 000H
+@MODEL				  Text	 1
+@STACK				  Text	 DGROUP
+@WORDSIZE			  Text	 2
+ENDL				  Text	 0dh, 0ah
+START				  Near	 DGROUP:0100
+STRING				  Byte	 DGROUP:010C
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+DGROUP				  Group
+  _DATA				  16  0000 Word	  Public  DATA
+  _TEXT				  16  012F Word	  Public  CODE
+

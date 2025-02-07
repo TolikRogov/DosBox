@@ -1,0 +1,65 @@
+Turbo Assembler	 Version 4.1	    02/08/25 02:20:37	    Page 1
+border.asm
+
+
+
+      1	0000			     .model tiny
+      2	0000			     .code
+      3
+      4				     org 100h
+      5
+      6	0100  B8 0900		     Start:	     mov ax, 0900h
+      7	0103  BA 011Er					     mov dx, offset String
+      8	0106  CD 21					     int 21h
+      9
+     10	0108  BB B800					     mov bx, 0b800h
+     11	010B  8E C3					     mov es, bx
+     12	010D  BB 0370					     mov bx, 5 * 80 * 2	+ 40 * 2
+     13	0110  26: C6 07	41				     mov byte ptr es: [bx], 'A'
+     14	0114  26: C6 47	01 AC				     mov byte ptr es: [bx + 1],	10101100b
+     15
+     16	0119  B8 4C00					     mov ax, 4c00h
+     17	011C  CD 21					     int 21h
+     18
+     19	      =	0ah, 0dh	     ENDL	     equ 0ah, 0dh
+     20
+     21	011E  52 54 52 54 52 54	52+  String db "RTRTRTRTRTRTRTRTRTRTRT", ENDL, "$"
+     22	      54 52 54 52 54 52	54+
+     23	      52 54 52 54 52 54	52+
+     24	      54 0A 0D 24
+     25
+     26				     end     Start
+Turbo Assembler	 Version 4.1	    02/08/25 02:20:37	    Page 2
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "02/08/25"
+??FILENAME			  Text	 "border  "
+??TIME				  Text	 "02:20:37"
+??VERSION			  Number 040A
+@32BIT				  Text	 0
+@CODE				  Text	 DGROUP
+@CODESIZE			  Text	 0
+@CPU				  Text	 0101H
+@CURSEG				  Text	 _TEXT
+@DATA				  Text	 DGROUP
+@DATASIZE			  Text	 0
+@FILENAME			  Text	 BORDER
+@INTERFACE			  Text	 000H
+@MODEL				  Text	 1
+@STACK				  Text	 DGROUP
+@WORDSIZE			  Text	 2
+ENDL				  Text	 0ah, 0dh
+START				  Near	 DGROUP:0100
+STRING				  Byte	 DGROUP:011E
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+DGROUP				  Group
+  _DATA				  16  0000 Word	  Public  DATA
+  _TEXT				  16  0137 Word	  Public  CODE
+
