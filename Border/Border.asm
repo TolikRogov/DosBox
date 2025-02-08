@@ -11,14 +11,31 @@ Start:	mov ax, 0900h							;ax = cmd(9) - print str'$'
 		mov dx, offset String					;dx = &String
 		int 21h									;call system's call manager
 
+		call PutSym								;call function
+
+		mov ax, 4c00h							;ax = cmd(4c)
+		int 21h									;call scm
+
+;------------------------------------------------------------------------------
+; Draws one char to video memory in (x = 40, y = 5)
+; Entry: 		AL = char to print
+;				AH = color
+; Exit:			None
+; Destroyed:	BX, ES
+;------------------------------------------------------------------------------
+
+PutSym	proc
+
 		mov bx, 0b800h							;bx = &ram
 		mov es, bx								;es = bx
 		mov bx, 5 * 80 * 2 + 40 * 2				;bx = window's size
 		mov byte ptr es: [bx], 'A'				;*(es * 16 + bx) = 6500
 		mov byte ptr es: [bx + 1], 10101100b	;*(es * 16 + bx + 1) = color
 
-		mov ax, 4c00h							;ax = cmd(4c)
-		int 21h									;call scm
+		ret										;return function value
+		endp									;proc's ending
+
+;------------------------------------------------------------------------------
 
 ENDL 	equ 0ah, 0dh							;define ENDL \r, \n
 
