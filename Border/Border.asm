@@ -3,42 +3,56 @@
 ;			@Rogov Anatoliy 08.02.2025 "Sivchuk Bad Day"
 ;------------------------------------------------------------------------------
 
+left_top_corner  	= 00c9h
+top_line     		= 00cdh
+right_top_corner 	= 00bbh
+left_line 	 		= 00bah
+main_char 	 		= 0020h
+right_line 	 		= 00bah
+left_bottom_corner 	= 00c8h
+right_bottom_corner = 00bch
+
 .model tiny										;set 64 Kb model
 .code											;define code block
 org 100h										;prog's begging ram block
 
-Start:	mov ax, 0900h							;ax = cmd(9) - print str'$'
-		mov dx, offset String					;dx = &String
-		int 21h									;call system's call manager
+Start:	mov bx, 0b800h
+		mov es, bx
 
-		call PutSym								;call function
+		mov bx, offset String
+		mov dh, 00001111b
+		mov dl, 9
+		call PrintString
 
 		mov ax, 4c00h							;ax = cmd(4c)
 		int 21h									;call scm
 
 ;------------------------------------------------------------------------------
-; Draws one char to video memory in (x = 40, y = 5)
-; Entry: 		AL = char to print
-;				AH = color
+; Draws string to console (x = 0, y = 0)
+; Entry: 		BX = string address
+;				DL = string size
+;				DX = color
 ; Exit:			None
-; Destroyed:	BX, ES
+; Destroyed:	AX, BX, CX
 ;------------------------------------------------------------------------------
 
-PutSym	proc
+PrintString	proc
 
-		mov bx, 0b800h							;bx = &ram
-		mov es, bx								;es = bx
-		mov bx, 5 * 80 * 2 + 40 * 2				;bx = window's size
-		mov byte ptr es: [bx], 'A'				;*(es * 16 + bx) = 6500
-		mov byte ptr es: [bx + 1], 10101100b	;*(es * 16 + bx + 1) = color
+			mov di, 0
+			mov cl, dl
 
-		ret										;return function value
-		endp									;proc's ending
+			cycle:
+			mov al, [bx]
+			mov ah, dh
+			stosw
+			inc bx
+			loop cycle
+
+			ret										;return function value
+			endp									;proc's ending
 
 ;------------------------------------------------------------------------------
 
-ENDL 	equ 0ah, 0dh							;define ENDL \r, \n
-
-String db "RTRTRTRTRTRTRTRTRTRTRT", ENDL, "$"	;String = "..." \n "$"
+String db '123456789'
 
 end 	Start									;pog's ending

@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/08/25 02:55:01	    Page 1
+Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 1
 border.asm
 
 
@@ -8,58 +8,72 @@ border.asm
       3				     ;			     @Rogov Anatoliy 08.02.2025	"Sivchuk Bad Day"
       4				     ;------------------------------------------------------------------------------
       5
-      6	0000			     .model tiny									     ;set 64+
-      7				     Kb	model
-      8	0000			     .code										     ;define+
-      9				     code block
-     10				     org 100h										     ;prog's+
-     11				     begging ram block
-     12
-     13	0100  B8 0900		     Start:  mov ax, 0900h						     ;ax = cmd(9) - print   +
-     14				     str'$'
-     15	0103  BA 0122r				     mov dx, offset String				     ;dx = &String
-     16	0106  CD 21				     int 21h								     ;call  +
-     17				     system's call manager
-     18
-     19	0108  E8 0005				     call PutSym							     ;call  +
-     20				     function
+      6	      =00C9		     left_top_corner	     = 00c9h
+      7	      =00CD		     top_line		     = 00cdh
+      8	      =00BB		     right_top_corner	     = 00bbh
+      9	      =00BA		     left_line			     = 00bah
+     10	      =0020		     main_char			     = 0020h
+     11	      =00BA		     right_line			     = 00bah
+     12	      =00C8		     left_bottom_corner	     = 00c8h
+     13	      =00BC		     right_bottom_corner = 00bch
+     14
+     15	0000			     .model tiny									     ;set 64+
+     16				     Kb	model
+     17	0000			     .code										     ;define+
+     18				     code block
+     19				     org 100h										     ;prog's+
+     20				     begging ram block
      21
-     22	010B  B8 4C00				     mov ax, 4c00h						     ;ax = cmd(4c)
-     23	010E  CD 21				     int 21h								     ;call  +
-     24				     scm
-     25
-     26				     ;------------------------------------------------------------------------------
-     27				     ; Draws one char to video memory in (x = 40, y = 5)
-     28				     ; Entry:		     AL	= char to print
-     29				     ;				     AH	= color
-     30				     ; Exit:		     None
-     31				     ; Destroyed:    BX, ES
-     32				     ;------------------------------------------------------------------------------
+     22	0100  BB B800		     Start:  mov bx, 0b800h
+     23	0103  8E C3				     mov es, bx
+     24
+     25	0105  BB 0122r				     mov bx, offset String
+     26	0108  B6 0F				     mov dh, 00001111b
+     27	010A  B2 09				     mov dl, 9
+     28	010C  E8 0005				     call PrintString
+     29
+     30	010F  B8 4C00				     mov ax, 4c00h						     ;ax = cmd(4c)
+     31	0112  CD 21				     int 21h								     ;call  +
+     32				     scm
      33
-     34	0110			     PutSym  proc
-     35
-     36	0110  BB B800				     mov bx, 0b800h						     ;bx = &ram
-     37	0113  8E C3				     mov es, bx								     ;es = bx
-     38	0115  BB 0370				     mov bx, 5 * 80 * 2	+ 40 * 2			     ;bx = window's size
-     39	0118  26: C6 07	41			     mov byte ptr es: [bx], 'A'				     ;*(es * 16	+ bx) =	6500
-     40	011C  26: C6 47	01 AC			     mov byte ptr es: [bx + 1],	10101100b    ;*(es * 16	+ bx + 1) = color
-     41
-     42	0121  C3				     ret									    +
-     43				     ;return function value
-     44	0122					     endp								     ;proc's+
-     45				     ending
-     46
-     47				     ;------------------------------------------------------------------------------
-     48
-     49	      =	0ah, 0dh	     ENDL    equ 0ah, 0dh						     ;define ENDL \r, \n
-     50
-     51	0122  52 54 52 54 52 54	52+  String db "RTRTRTRTRTRTRTRTRTRTRT", ENDL, "$"   ;String = "..." \n	"$"
-     52	      54 52 54 52 54 52	54+
-     53	      52 54 52 54 52 54	52+
-     54	      54 0A 0D 24
-     55
-     56				     end     Start								     ;pog's ending
-Turbo Assembler	 Version 4.1	    02/08/25 02:55:01	    Page 2
+     34				     ;------------------------------------------------------------------------------
+     35				     ; Draws string to console (x = 0, y = 0)
+     36				     ; Entry:		     BX	= string address
+     37				     ;				     DL	= string size
+     38				     ;				     DX	= color
+     39				     ; Exit:		     None
+     40				     ; Destroyed:    AX, BX, CX
+     41				     ;------------------------------------------------------------------------------
+     42
+     43	0114			     PrintString     proc
+     44
+     45	0114  BF 0000					     mov di, 0
+     46	0117  8A CA					     mov cl, dl
+     47
+     48	0119						     cycle:
+     49	0119  8A 07					     mov al, [bx]
+     50	011B  8A E6					     mov ah, dh
+     51	011D  AB					     stosw
+     52	011E  43					     inc bx
+     53	011F  E2 F8					     loop cycle
+     54
+     55	0121  C3					     ret								    +
+     56				     ;return function value
+     57	0122						     endp								    +
+Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 2
+border.asm
+
+
+
+     58				     ;proc's ending
+     59
+     60				     ;------------------------------------------------------------------------------
+     61
+     62	0122  31 32 33 34 35 36	37+  String db '123456789'
+     63	      38 39
+     64
+     65				     end     Start								     ;pog's ending
+Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 3
 Symbol Table
 
 
@@ -67,9 +81,9 @@ Symbol Table
 
 Symbol Name			  Type	 Value
 
-??DATE				  Text	 "02/08/25"
+??DATE				  Text	 "02/10/25"
 ??FILENAME			  Text	 "border  "
-??TIME				  Text	 "02:55:01"
+??TIME				  Text	 "02:46:40"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @CODE				  Text	 DGROUP
@@ -83,14 +97,22 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
-ENDL				  Text	 0ah, 0dh
-PUTSYM				  Near	 DGROUP:0110
+CYCLE				  Near	 DGROUP:0119
+LEFT_BOTTOM_CORNER		  Number 00C8
+LEFT_LINE			  Number 00BA
+LEFT_TOP_CORNER			  Number 00C9
+MAIN_CHAR			  Number 0020
+PRINTSTRING			  Near	 DGROUP:0114
+RIGHT_BOTTOM_CORNER		  Number 00BC
+RIGHT_LINE			  Number 00BA
+RIGHT_TOP_CORNER		  Number 00BB
 START				  Near	 DGROUP:0100
 STRING				  Byte	 DGROUP:0122
+TOP_LINE			  Number 00CD
 
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
   _DATA				  16  0000 Word	  Public  DATA
-  _TEXT				  16  013B Word	  Public  CODE
+  _TEXT				  16  012B Word	  Public  CODE
 
