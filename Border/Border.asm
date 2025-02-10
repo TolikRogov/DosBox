@@ -1,55 +1,89 @@
 ;------------------------------------------------------------------------------
-;		First work with video memory. Output a colored symbol to console.
+;			 Card for Saint Valentine's Day (aka frame)
 ;			@Rogov Anatoliy 08.02.2025 "Sivchuk Bad Day"
 ;------------------------------------------------------------------------------
 
-left_top_corner  	= 00c9h									;frames elements
-top_line     		= 00cdh
-right_top_corner 	= 00bbh
-left_line 	 		= 00bah
-main_char 	 		= 0020h
-right_line 	 		= 00bah
-left_bottom_corner 	= 00c8h
-bottom_line 		= 00cdh
-right_bottom_corner = 00bch
-
-window_len 			= 80									;window length in columns
-window_height 		= 25									;window height in rows
+video_segment 		= 0b800h								;video segment
+window_len 			= 80									;window row length
+window_height 		= 25									;window column height
 frame_color 		= 00001010b								;color of frame element
+string_color 		= 10001010b								;color of frame inside string
 
-len 				= 50									;frame length in columns
-height 				= 10									;frame height in rows
-str_size 			= 14									;inside frame string position
+len 				= 30									;frame row length
+height 				= 9										;frame column height
 
-x_start 			= (window_len - len) / 2				;eval x frame start position
-y_start 			= (window_height - height) / 2			;eval y frame start position
-x_string 			= x_start + (len - str_size) / 2		;inside frame string x start position
-y_string 			= (2 * height + y_start) / 2 - 1		;inside frame string y start position
+x_start 			= (window_len - len) / 2				;x frame start position
+y_start 			= (window_height - height) / 2			;y frame start position
+y_string 			= (height / 2 + y_start)				;y string start position
 
 .model tiny													;set 64 Kb model
 .code														;define code block
 org 100h													;prog's begging ram block
 
-Start:	mov bx, 0b800h										;es = video segment
-		mov es, bx
+Start:	mov bx, video_segment								;bx = video segment position
+		mov es, bx											;es = bx
 
-		mov bx, offset String								;Set frame data string with frame elements
-		call SetString
+		mov si, offset OutsideFrameString					;si = &FrameStyleString
+		mov dh, height										;dh = frame height
+		mov dl, len											;dl = frame length
+		xor di, di											;di = 0
+		call DrawFrame
 
-		mov bx, offset String								;Prepare for frame drawing
-		mov dh, height
-		mov dl, len
-		mov di, 0
-		call StringDrawing
+		mov si, offset InsideString							;si = &inside frame string
+		xor cx, cx											;cx = 0
+		call StrLen
 
-		mov bx, offset InsideString
-		mov di, y_string * window_len * 2 + x_string * 2
-		mov ah, frame_color
-		mov cx, str_size
+		mov si, offset InsideString							;si = &inside frame string
+		call EvalShift
+
+		mov ah, string_color								;ah = string color
 		call PrintInsideString
 
 		mov ax, 4c00h										;ax = cmd(4c)
 		int 21h												;call scm
+
+;------------------------------------------------------------------------------
+; Eval shift of frame inside string
+; Entry:		CX = string length
+; Exit:			None
+; Destroyed:	DI, BX
+;------------------------------------------------------------------------------
+
+EvalShift	proc
+
+			mov di, y_string * window_len * 2 + (x_start + len / 2) * 2
+			mov bx, cx										;bx = cx
+			shr bx, 1										;bx /= 2
+			sub di, bx										;di -= bx
+			sub di, bx										;di -= bx
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+
+;------------------------------------------------------------------------------
+; Eval string length with '$' terminal symbol
+; Entry: 		SI = data string address
+; Exit:			None
+; Destroyed:	BX, AL, CX
+;------------------------------------------------------------------------------
+
+StrLen	proc
+
+		str_len:											;<------------------------------|
+			lodsb											;mov al, ds:[si]				|
+			cmp al, '$'										;if (al == '$') zf = 1			|
+			jz end_str_len									;if (zf == 1) goto end_str_len	|
+			add cx, 2										;cx += 2						|
+		loop str_len										;-------------------------------|
+		end_str_len:										;label of str len ending
+
+		ret													;return function value
+		endp												;proc's ending
+
+;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; Print string inside the frame
@@ -62,82 +96,43 @@ Start:	mov bx, 0b800h										;es = video segment
 
 PrintInsideString	proc
 
-					print_string:
-						mov al, [bx]
-						stosw
-						inc bx
-					loop print_string
+					print_string:							;<----------------------------------|
+						lodsb								;mov al, ds:[si]					|
+						stosw								;mov es:[di], ax / add di, 2		|
+						cmp al, '$'							;if (al == '$') zf = 1				|
+						jz end_print_string					;if (zf == 1) goto end_print_string	|
+					loop print_string						;-----------------------------------|
+					end_print_string:						;label of print string ending
 
-					ret													;return function value
-					endp												;proc's ending
+					ret										;return function value
+					endp									;proc's ending
 
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; Draw frame with size: len, height
-; Entry: 		BX = data string address
+; Entry: 		SI = data string address
 ;				DH = frame height
 ;				DL = frame len
 ; Exit:			None
-; Destroyed:	BX
+; Destroyed:	BX, CX, DI
 ;------------------------------------------------------------------------------
 
-StringDrawing	proc
+DrawFrame	proc
 
-				add di, y_start * window_len * 2 + x_start * 2		;draw frame top line
-				call PrintString
+			add di, y_start * window_len * 2 + x_start * 2	;frame top line shifting
+			call PrintString								;print string
 
-				mov cx, height - 2									;draw frame main lines
-				cycle1:
-					add di, window_len * 2
-					call PrintString
-					sub bx, 3
-				loop cycle1
-				add bx, 3
+			mov cx, height - 2								;count of center frame line
+			cycle1:											;<--------------------------|
+				add di, window_len * 2						;di += window_len * 2		|
+				call PrintString							;print string				|
+				sub si, 3									;si -= 3					|
+			loop cycle1										;---------------------------|
+			add si, 3										;si += 3
 
-				add di, window_len * 2								;draw frame bottom line
-				call PrintString
-
-				ret													;return function value
-				endp												;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; Set String
-; Entry: 		None
-; Exit:			None
-; Destroyed:	BX
-;------------------------------------------------------------------------------
-
-SetString	proc
-
-			mov byte ptr ds: [bx], left_top_corner
-			inc bx
-
-			mov byte ptr ds: [bx], top_line
-			inc bx
-
-			mov byte ptr ds: [bx], right_top_corner
-			inc bx
-
-			mov byte ptr ds: [bx], left_line
-			inc bx
-
-			mov byte ptr ds: [bx], main_char
-			inc bx
-
-			mov byte ptr ds: [bx], right_line
-			inc bx
-
-			mov byte ptr ds: [bx], left_bottom_corner
-			inc bx
-
-			mov byte ptr ds: [bx], bottom_line
-			inc bx
-
-			mov byte ptr ds: [bx], right_bottom_corner
-			inc bx
+			add di, window_len * 2							;di += window_len * 2 (next line)
+			call PrintString								;print string
 
 			ret												;return function value
 			endp											;proc's ending
@@ -156,26 +151,21 @@ PrintString	proc
 
 			mov ah, frame_color								;set symbols color
 
-															;Print first string symbol
-			mov al, [bx]									;al = *bx
-			stosw											;mov es: [di], ax / di += 2
-			inc bx											;bx++
+			lodsb											;mov al, ds:[si]
+			stosw											;mov es:[di], ax / add di, 2
 
-															;Print second string symbols
-			mov si, cx										;save prev loop cnt
+			mov bx, cx										;save prev loop cnt
 			mov cl, dl										;counter = dl
 			sub cl, 2										;without top and bottom line
-			cycle:											;while
-				mov al, [bx]								;al = *bx
-				stosw										;mov es: [bx], ax / di += 2
-			loop cycle										;goto cycle
-			inc bx											;bx++
-			mov cx, si										;return prev loop cnt
+			cycle:											;<------------------------------|
+				mov al, [si]								;al = [si]						|
+				stosw										;mov es:[di], ax / add di, 2	|
+			loop cycle										;-------------------------------|
+			inc si											;bx++
+			mov cx, bx										;return prev loop cnt
 
-															;Print third string symbol
-			mov al, [bx]									;al = [bx]
-			stosw											;mov es: [bx], ax / di += 2
-			inc bx											;bx++
+			lodsb											;mov al, ds:[si]
+			stosw											;mov es:[di], ax / add di, 2
 
 			sub di, len * 2									;set di to line beginning
 
@@ -184,7 +174,14 @@ PrintString	proc
 
 ;------------------------------------------------------------------------------
 
-String 			db '<_>| |<_>'
-InsideString 	db 'I wanna sleep!$'
+DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
+SingleFrameString	db 'ÚÄ¿³ ³ÀÄÙ'
+HeartFrameString	db ' '
+DebugFrameString	db '123456789'
+MathFrameString		db 'ûûûû ûûûû'
+PatriotFrameString	db 'RTRT TRTR'
+PointedFrameString	db '²±²° °²±²'
+OutsideFrameString	db 'ÀÁÙ´ Ã¿ÂÚ'
+InsideString 		db 'I wanna sleep!$'
 
-end 	Start												;pog's ending
+end 	Start												;prog's ending

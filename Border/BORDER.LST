@@ -1,273 +1,291 @@
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 1
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 1
 border.asm
 
 
 
       1				     ;------------------------------------------------------------------------------
-      2				     ;		     First work	with video memory. Output a colored symbol to console.
+      2				     ;			      Card for Saint Valentine's Day (aka frame)
       3				     ;			     @Rogov Anatoliy 08.02.2025	"Sivchuk Bad Day"
       4				     ;------------------------------------------------------------------------------
       5
-      6	      =00C9		     left_top_corner	     = 00c9h								    +
-      7				     ;frames elements
-      8	      =00CD		     top_line		     = 00cdh
-      9	      =00BB		     right_top_corner	     = 00bbh
-     10	      =00BA		     left_line			     = 00bah
-     11	      =0020		     main_char			     = 0020h
-     12	      =00BA		     right_line			     = 00bah
-     13	      =00C8		     left_bottom_corner	     = 00c8h
-     14	      =00CD		     bottom_line	     = 00cdh
-     15	      =00BC		     right_bottom_corner = 00bch
+      6	      =B800		     video_segment	     = 0b800h								    +
+      7				     ;video segment
+      8	      =0050		     window_len			     = 80							    +
+      9				     ;window row length
+     10	      =0019		     window_height	     = 25								    +
+     11				     ;window column height
+     12	      =000A		     frame_color	     = 00001010b							    +
+     13				     ;color of frame element
+     14	      =008A		     string_color	     = 10001010b							    +
+     15				     ;color of frame inside string
      16
-     17	      =0050		     window_len			     = 80							    +
-     18				     ;window length in columns
-     19	      =0019		     window_height	     = 25								    +
-     20				     ;window height in rows
-     21	      =000A		     frame_color	     = 00001010b							    +
-     22				     ;color of frame element
-     23
-     24	      =0032		     len			     = 50							    +
-     25				     ;frame length in columns
-     26	      =000A		     height			     = 10							    +
-     27				     ;frame height in rows
-     28	      =000E		     str_size			     = 14							    +
-     29				     ;inside frame string position
-     30
-     31	      =000F		     x_start			     = (window_len - len) / 2				     ;eval x+
-     32				     frame start position
-     33	      =0007		     y_start			     = (window_height -	height)	/ 2		     ;eval y frame  +
-     34				     start position
-     35	      =0021		     x_string			     = x_start + (len -	str_size) / 2		     ;inside frame  +
-     36				     string x start position
-     37	      =000C		     y_string			     = (2 * height + y_start) /	2 - 1		     ;inside frame  +
-     38				     string y start position
-     39
-     40	0000			     .model tiny										    +
-     41				     ;set 64 Kb	model
-     42	0000			     .code											    +
-     43				     ;define code block
-     44				     org 100h											    +
-     45				     ;prog's begging ram block
-     46
-     47	0100  BB B800		     Start:  mov bx, 0b800h									    +
-     48				     ;es = video segment
-     49	0103  8E C3				     mov es, bx
+     17	      =001E		     len			     = 30							    +
+     18				     ;frame row	length
+     19	      =0009		     height			     = 9							    +
+     20				     ;frame column height
+     21
+     22	      =0019		     x_start			     = (window_len - len) / 2				     ;x	    +
+     23				     frame start position
+     24	      =0008		     y_start			     = (window_height -	height)	/ 2		     ;y	frame start +
+     25				     position
+     26	      =000C		     y_string			     = (height / 2 + y_start)				     ;y	    +
+     27				     string start position
+     28
+     29	0000			     .model tiny										    +
+     30				     ;set 64 Kb	model
+     31	0000			     .code											    +
+     32				     ;define code block
+     33				     org 100h											    +
+     34				     ;prog's begging ram block
+     35
+     36	0100  BB B800		     Start:  mov bx, video_segment							     ;bx =  +
+     37				     video segment position
+     38	0103  8E C3				     mov es, bx									    +
+     39				     ;es = bx
+     40
+     41	0105  BE 0183r				     mov si, offset DoubleFrameString					     ;si =  +
+     42				     &FrameStyleString
+     43	0108  B6 09				     mov dh, height								    +
+     44				     ;dh = frame height
+     45	010A  B2 1E				     mov dl, len								    +
+     46				     ;dl = frame length
+     47	010C  33 FF				     xor di, di									    +
+     48				     ;di = 0
+     49	010E  E8 0038				     call DrawFrame
      50
-     51	0105  BB 0195r				     mov bx, offset String							    +
-     52				     ;Set frame	data string with frame elements
-     53	0108  E8 0048				     call SetString
-     54
-     55	010B  BB 0195r				     mov bx, offset String							    +
-     56				     ;Prepare for frame	drawing
-     57	010E  B6 0A				     mov dh, height
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 2
+     51	0111  BE 018Cr				     mov si, offset InsideString						    +
+     52				     ;si = &inside frame string
+     53	0114  33 C9				     xor cx, cx									    +
+     54				     ;cx = 0
+     55	0116  E8 001C				     call StrLen
+     56
+     57	0119  BE 018Cr				     mov si, offset InsideString						    +
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 2
 border.asm
 
 
 
-     58	0110  B2 32				     mov dl, len
-     59	0112  BF 0000				     mov di, 0
-     60	0115  E8 001A				     call StringDrawing
-     61
-     62	0118  BB 019Er				     mov bx, offset InsideString
-     63	011B  BF 07C2				     mov di, y_string *	window_len * 2 + x_string * 2
-     64	011E  B4 0A				     mov ah, frame_color
-     65	0120  B9 000E				     mov cx, str_size
-     66	0123  E8 0005				     call PrintInsideString
-     67
-     68	0126  B8 4C00				     mov ax, 4c00h								    +
-     69				     ;ax = cmd(4c)
-     70	0129  CD 21				     int 21h									    +
-     71				     ;call scm
-     72
-     73				     ;------------------------------------------------------------------------------
-     74				     ; Print string inside the frame
-     75				     ; Entry:		     BX	= data string address
-     76				     ;				     AH	= string color
-     77				     ;				     CX	= string length
-     78				     ; Exit:		     None
-     79				     ; Destroyed:    BX, AL, DI
-     80				     ;------------------------------------------------------------------------------
-     81
-     82	012B			     PrintInsideString	     proc
-     83
-     84	012B								     print_string:
-     85	012B  8A 07								     mov al, [bx]
-     86	012D  AB								     stosw
-     87	012E  43								     inc bx
-     88	012F  E2 FA							     loop print_string
-     89
-     90	0131  C3							     ret						    +
-     91				     ;return function value
-     92	0132								     endp						    +
-     93				     ;proc's ending
-     94
-     95				     ;------------------------------------------------------------------------------
+     58				     ;si = &inside frame string
+     59	011C  E8 000A				     call EvalShift
+     60
+     61	011F  B4 8A				     mov ah, string_color							    +
+     62				     ;ah = string color
+     63	0121  E8 001C				     call PrintInsideString
+     64
+     65	0124  B8 4C00				     mov ax, 4c00h								    +
+     66				     ;ax = cmd(4c)
+     67	0127  CD 21				     int 21h									    +
+     68				     ;call scm
+     69
+     70				     ;------------------------------------------------------------------------------
+     71				     ; Eval shift of frame inside string
+     72				     ; Entry:		     CX	= string length
+     73				     ; Exit:		     None
+     74				     ; Destroyed:    DI, BX
+     75				     ;------------------------------------------------------------------------------
+     76
+     77	0129			     EvalShift	     proc
+     78
+     79	0129  BF 07D0					     mov di, y_string *	window_len * 2 + (x_start + len	/ 2) * 2
+     80	012C  8B D9					     mov bx, cx								    +
+     81				     ;bx = cx
+     82	012E  D1 EB					     shr bx, 1								    +
+     83				     ;bx /= 2
+     84	0130  2B FB					     sub di, bx								    +
+     85				     ;di -= bx
+     86	0132  2B FB					     sub di, bx								    +
+     87				     ;di -= bx
+     88
+     89	0134  C3					     ret								    +
+     90				     ;return function value
+     91	0135						     endp								    +
+     92				     ;proc's ending
+     93
+     94				     ;------------------------------------------------------------------------------
+     95
      96
      97				     ;------------------------------------------------------------------------------
-     98				     ; Draw frame with size: len, height
-     99				     ; Entry:		     BX	= data string address
-    100				     ;				     DH	= frame	height
-    101				     ;				     DL	= frame	len
-    102				     ; Exit:		     None
-    103				     ; Destroyed:    BX
-    104				     ;------------------------------------------------------------------------------
+     98				     ; Eval string length with '$' terminal symbol
+     99				     ; Entry:		     SI	= data string address
+    100				     ; Exit:		     None
+    101				     ; Destroyed:    BX, AL, CX
+    102				     ;------------------------------------------------------------------------------
+    103
+    104	0135			     StrLen  proc
     105
-    106	0132			     StringDrawing   proc
-    107
-    108	0132  81 C7 047E					     add di, y_start * window_len * 2 +	x_start	* 2	     ;draw  +
-    109				     frame top line
-    110	0136  E8 003F						     call PrintString
-    111
-    112	0139  B9 0008						     mov cx, height - 2						    +
-    113				     ;draw frame main lines
-    114	013C							     cycle1:
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 3
+    106	0135					     str_len:									    +
+    107				     ;<------------------------------|
+    108	0135  AC					     lodsb								    +
+    109				     ;mov al, ds:[si]				     |
+    110	0136  3C 24					     cmp al, '$'							    +
+    111				     ;if (al ==	'$') zf	= 1		     |
+    112	0138  74 05					     jz	end_str_len							    +
+    113				     ;if (zf ==	1) goto	end_str_len  |
+    114	013A  83 C1 02					     add cx, 2								    +
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 3
 border.asm
 
 
 
-    115	013C  81 C7 00A0						     add di, window_len	* 2
-    116	0140  E8 0035							     call PrintString
-    117	0143  83 EB 03							     sub bx, 3
-    118	0146  E2 F4						     loop cycle1
-    119	0148  83 C3 03						     add bx, 3
+    115				     ;cx += 2						     |
+    116	013D  E2 F6				     loop str_len								    +
+    117				     ;-------------------------------|
+    118	013F					     end_str_len:								    +
+    119				     ;label of str len ending
     120
-    121	014B  81 C7 00A0					     add di, window_len	* 2					    +
-    122				     ;draw frame bottom	line
-    123	014F  E8 0026						     call PrintString
-    124
-    125	0152  C3						     ret							    +
-    126				     ;return function value
-    127	0153							     endp							    +
-    128				     ;proc's ending
-    129
-    130				     ;------------------------------------------------------------------------------
-    131
-    132				     ;------------------------------------------------------------------------------
-    133				     ; Set String
-    134				     ; Entry:		     None
-    135				     ; Exit:		     None
-    136				     ; Destroyed:    BX
-    137				     ;------------------------------------------------------------------------------
+    121	013F  C3				     ret									    +
+    122				     ;return function value
+    123	0140					     endp									    +
+    124				     ;proc's ending
+    125
+    126				     ;------------------------------------------------------------------------------
+    127
+    128				     ;------------------------------------------------------------------------------
+    129				     ; Print string inside the frame
+    130				     ; Entry:		     BX	= data string address
+    131				     ;				     AH	= string color
+    132				     ;				     CX	= string length
+    133				     ; Exit:		     None
+    134				     ; Destroyed:    BX, AL, DI
+    135				     ;------------------------------------------------------------------------------
+    136
+    137	0140			     PrintInsideString	     proc
     138
-    139	0153			     SetString	     proc
-    140
-    141	0153  C6 07 C9					     mov byte ptr ds: [bx], left_top_corner
-    142	0156  43					     inc bx
-    143
-    144	0157  C6 07 CD					     mov byte ptr ds: [bx], top_line
-    145	015A  43					     inc bx
-    146
-    147	015B  C6 07 BB					     mov byte ptr ds: [bx], right_top_corner
-    148	015E  43					     inc bx
-    149
-    150	015F  C6 07 BA					     mov byte ptr ds: [bx], left_line
-    151	0162  43					     inc bx
-    152
-    153	0163  C6 07 20					     mov byte ptr ds: [bx], main_char
-    154	0166  43					     inc bx
-    155
-    156	0167  C6 07 BA					     mov byte ptr ds: [bx], right_line
-    157	016A  43					     inc bx
+    139	0140								     print_string:					    +
+    140				     ;<----------------------------------|
+    141	0140  AC								     lodsb					    +
+    142				     ;mov al, ds:[si]					     |
+    143	0141  AB								     stosw					    +
+    144				     ;mov es:[di], ax /	add di,	2	     |
+    145	0142  3C 24								     cmp al, '$'				    +
+    146				     ;if (al ==	'$') zf	= 1			     |
+    147	0144  74 02								     jz	end_print_string			    +
+    148				     ;if (zf ==	1) goto	end_print_string     |
+    149	0146  E2 F8							     loop print_string					    +
+    150				     ;-----------------------------------|
+    151	0148								     end_print_string:					    +
+    152				     ;label of print string ending
+    153
+    154	0148  C3							     ret						    +
+    155				     ;return function value
+    156	0149								     endp						    +
+    157				     ;proc's ending
     158
-    159	016B  C6 07 C8					     mov byte ptr ds: [bx], left_bottom_corner
-    160	016E  43					     inc bx
-    161
-    162	016F  C6 07 CD					     mov byte ptr ds: [bx], bottom_line
-    163	0172  43					     inc bx
-    164
-    165	0173  C6 07 BC					     mov byte ptr ds: [bx], right_bottom_corner
-    166	0176  43					     inc bx
-    167
-    168	0177  C3					     ret								    +
-    169				     ;return function value
-    170	0178						     endp								    +
-    171				     ;proc's ending
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 4
+    159				     ;------------------------------------------------------------------------------
+    160
+    161				     ;------------------------------------------------------------------------------
+    162				     ; Draw frame with size: len, height
+    163				     ; Entry:		     SI	= data string address
+    164				     ;				     DH	= frame	height
+    165				     ;				     DL	= frame	len
+    166				     ; Exit:		     None
+    167				     ; Destroyed:    BX, CX, DI
+    168				     ;------------------------------------------------------------------------------
+    169
+    170	0149			     DrawFrame	     proc
+    171
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 4
 border.asm
 
 
 
-    172
-    173				     ;------------------------------------------------------------------------------
-    174
-    175				     ;------------------------------------------------------------------------------
-    176				     ; Draws string to console in format: s1s2....s2s3
-    177				     ; Entry:		     BX	= string address
-    178				     ;				     DL	= string len
-    179				     ; Exit:		     None
-    180				     ; Destroyed:    AX, BX, CX, SI
-    181				     ;------------------------------------------------------------------------------
-    182
-    183	0178			     PrintString     proc
-    184
-    185	0178  B4 0A					     mov ah, frame_color						    +
-    186				     ;set symbols color
-    187
-    188																    +
-    189				     ;Print first string symbol
-    190	017A  8A 07					     mov al, [bx]							    +
-    191				     ;al = *bx
-    192	017C  AB					     stosw								    +
-    193				     ;mov es: [di], ax / di += 2
-    194	017D  43					     inc bx								    +
-    195				     ;bx++
-    196
-    197																    +
-    198				     ;Print second string symbols
-    199	017E  8B F1					     mov si, cx								    +
-    200				     ;save prev	loop cnt
-    201	0180  8A CA					     mov cl, dl								    +
-    202				     ;counter =	dl
-    203	0182  80 E9 02					     sub cl, 2								    +
-    204				     ;without top and bottom line
-    205	0185						     cycle:								    +
-    206				     ;while
-    207	0185  8A 07						     mov al, [bx]						    +
-    208				     ;al = *bx
-    209	0187  AB						     stosw							    +
-    210				     ;mov es: [bx], ax / di += 2
-    211	0188  E2 FB					     loop cycle								    +
-    212				     ;goto cycle
-    213	018A  43					     inc bx								    +
-    214				     ;bx++
-    215	018B  8B CE					     mov cx, si								    +
-    216				     ;return prev loop cnt
-    217
-    218																    +
-    219				     ;Print third string symbol
-    220	018D  8A 07					     mov al, [bx]							    +
-    221				     ;al = [bx]
-    222	018F  AB					     stosw								    +
-    223				     ;mov es: [bx], ax / di += 2
-    224	0190  43					     inc bx								    +
-    225				     ;bx++
-    226
-    227	0191  83 EF 64					     sub di, len * 2							    +
-    228				     ;set di to	line beginning
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 5
+    172	0149  81 C7 0532				     add di, y_start * window_len * 2 +	x_start	* 2  ;frame top	line shifting
+    173	014D  E8 001A					     call PrintString							    +
+    174				     ;print string
+    175
+    176	0150  B9 0007					     mov cx, height - 2							    +
+    177				     ;count of center frame line
+    178	0153						     cycle1:								    +
+    179				     ;<--------------------------|
+    180	0153  81 C7 00A0					     add di, window_len	* 2					    +
+    181				     ;di += window_len * 2	     |
+    182	0157  E8 0010						     call PrintString						    +
+    183				     ;print string			     |
+    184	015A  83 EE 03						     sub si, 3							    +
+    185				     ;si -= 3					     |
+    186	015D  E2 F4					     loop cycle1							    +
+    187				     ;---------------------------|
+    188	015F  83 C6 03					     add si, 3								    +
+    189				     ;si += 3
+    190
+    191	0162  81 C7 00A0				     add di, window_len	* 2						    +
+    192				     ;di += window_len * 2 (next line)
+    193	0166  E8 0001					     call PrintString							    +
+    194				     ;print string
+    195
+    196	0169  C3					     ret								    +
+    197				     ;return function value
+    198	016A						     endp								    +
+    199				     ;proc's ending
+    200
+    201				     ;------------------------------------------------------------------------------
+    202
+    203				     ;------------------------------------------------------------------------------
+    204				     ; Draws string to console in format: s1s2....s2s3
+    205				     ; Entry:		     BX	= string address
+    206				     ;				     DL	= string len
+    207				     ; Exit:		     None
+    208				     ; Destroyed:    AX, BX, CX, SI
+    209				     ;------------------------------------------------------------------------------
+    210
+    211	016A			     PrintString     proc
+    212
+    213	016A  B4 0A					     mov ah, frame_color						    +
+    214				     ;set symbols color
+    215
+    216	016C  AC					     lodsb								    +
+    217				     ;mov al, ds:[si]
+    218	016D  AB					     stosw								    +
+    219				     ;mov es:[di], ax /	add di,	2
+    220
+    221	016E  8B D9					     mov bx, cx								    +
+    222				     ;save prev	loop cnt
+    223	0170  8A CA					     mov cl, dl								    +
+    224				     ;counter =	dl
+    225	0172  80 E9 02					     sub cl, 2								    +
+    226				     ;without top and bottom line
+    227	0175						     cycle:								    +
+    228				     ;<------------------------------|
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 5
 border.asm
 
 
 
-    229
-    230	0194  C3					     ret								    +
-    231				     ;return function value
-    232	0195						     endp								    +
-    233				     ;proc's ending
-    234
-    235				     ;------------------------------------------------------------------------------
-    236
-    237	0195  3C 5F 3E 7C 20 7C	3C+  String		     db	'<_>| |<_>'
-    238	      5F 3E
-    239	019E  49 20 77 61 6E 6E	61+  InsideString    db	'I wanna sleep!$'
-    240	      20 73 6C 65 65 70	21+
-    241	      24
-    242
-    243				     end     Start										    +
-    244				     ;pog's ending
-Turbo Assembler	 Version 4.1	    02/10/25 12:06:54	    Page 6
+    229	0175  8A 04						     mov al, [si]						    +
+    230				     ;al = [si]						     |
+    231	0177  AB						     stosw							    +
+    232				     ;mov es:[di], ax /	add di,	2    |
+    233	0178  E2 FB					     loop cycle								    +
+    234				     ;-------------------------------|
+    235	017A  46					     inc si								    +
+    236				     ;bx++
+    237	017B  8B CB					     mov cx, bx								    +
+    238				     ;return prev loop cnt
+    239
+    240	017D  AC					     lodsb								    +
+    241				     ;mov al, ds:[si]
+    242	017E  AB					     stosw								    +
+    243				     ;mov es:[di], ax /	add di,	2
+    244
+    245	017F  83 EF 3C					     sub di, len * 2							    +
+    246				     ;set di to	line beginning
+    247
+    248	0182  C3					     ret								    +
+    249				     ;return function value
+    250	0183						     endp								    +
+    251				     ;proc's ending
+    252
+    253				     ;------------------------------------------------------------------------------
+    254
+    255	0183  C9 CD BB BA 20 BA	C8+  DoubleFrameString	     db	'…Õª∫ ∫»Õº'
+    256	      CD BC
+    257	018C  49 20 77 61 6E 6E	61+  InsideString	     db	'I wanna sleep!$'
+    258	      20 73 6C 65 65 70	21+
+    259	      24
+    260
+    261				     end     Start										    +
+    262				     ;prog's ending
+Turbo Assembler	 Version 4.1	    02/10/25 23:29:50	    Page 6
 Symbol Table
 
 
@@ -277,7 +295,7 @@ Symbol Name			  Type	 Value
 
 ??DATE				  Text	 "02/10/25"
 ??FILENAME			  Text	 "border  "
-??TIME				  Text	 "12:06:53"
+??TIME				  Text	 "23:29:50"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @CODE				  Text	 DGROUP
@@ -291,39 +309,34 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
-BOTTOM_LINE			  Number 00CD
-CYCLE				  Near	 DGROUP:0185
-CYCLE1				  Near	 DGROUP:013C
+CYCLE				  Near	 DGROUP:0175
+CYCLE1				  Near	 DGROUP:0153
+DOUBLEFRAMESTRING		  Byte	 DGROUP:0183
+DRAWFRAME			  Near	 DGROUP:0149
+END_PRINT_STRING		  Near	 DGROUP:0148
+END_STR_LEN			  Near	 DGROUP:013F
+EVALSHIFT			  Near	 DGROUP:0129
 FRAME_COLOR			  Number 000A
-HEIGHT				  Number 000A
-INSIDESTRING			  Byte	 DGROUP:019E
-LEFT_BOTTOM_CORNER		  Number 00C8
-LEFT_LINE			  Number 00BA
-LEFT_TOP_CORNER			  Number 00C9
-LEN				  Number 0032
-MAIN_CHAR			  Number 0020
-PRINTINSIDESTRING		  Near	 DGROUP:012B
-PRINTSTRING			  Near	 DGROUP:0178
-PRINT_STRING			  Near	 DGROUP:012B
-RIGHT_BOTTOM_CORNER		  Number 00BC
-RIGHT_LINE			  Number 00BA
-RIGHT_TOP_CORNER		  Number 00BB
-SETSTRING			  Near	 DGROUP:0153
+HEIGHT				  Number 0009
+INSIDESTRING			  Byte	 DGROUP:018C
+LEN				  Number 001E
+PRINTINSIDESTRING		  Near	 DGROUP:0140
+PRINTSTRING			  Near	 DGROUP:016A
+PRINT_STRING			  Near	 DGROUP:0140
 START				  Near	 DGROUP:0100
-STRING				  Byte	 DGROUP:0195
-STRINGDRAWING			  Near	 DGROUP:0132
-STR_SIZE			  Number 000E
-TOP_LINE			  Number 00CD
+STRING_COLOR			  Number 008A
+STRLEN				  Near	 DGROUP:0135
+STR_LEN				  Near	 DGROUP:0135
+VIDEO_SEGMENT			  Number B800
 WINDOW_HEIGHT			  Number 0019
 WINDOW_LEN			  Number 0050
-X_START				  Number 000F
-X_STRING			  Number 0021
-Y_START				  Number 0007
+X_START				  Number 0019
+Y_START				  Number 0008
 Y_STRING			  Number 000C
 
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
   _DATA				  16  0000 Word	  Public  DATA
-  _TEXT				  16  01AD Word	  Public  CODE
+  _TEXT				  16  019B Word	  Public  CODE
 
