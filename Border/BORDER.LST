@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 1
+Turbo Assembler	 Version 4.1	    02/10/25 04:19:34	    Page 1
 border.asm
 
 
@@ -15,65 +15,167 @@ border.asm
      10	      =0020		     main_char			     = 0020h
      11	      =00BA		     right_line			     = 00bah
      12	      =00C8		     left_bottom_corner	     = 00c8h
-     13	      =00BC		     right_bottom_corner = 00bch
-     14
-     15	0000			     .model tiny									     ;set 64+
-     16				     Kb	model
-     17	0000			     .code										     ;define+
-     18				     code block
-     19				     org 100h										     ;prog's+
-     20				     begging ram block
-     21
-     22	0100  BB B800		     Start:  mov bx, 0b800h
-     23	0103  8E C3				     mov es, bx
-     24
-     25	0105  BB 0122r				     mov bx, offset String
-     26	0108  B6 0F				     mov dh, 00001111b
-     27	010A  B2 09				     mov dl, 9
-     28	010C  E8 0005				     call PrintString
+     13	      =00CD		     bottom_line	     = 00cdh
+     14	      =00BC		     right_bottom_corner = 00bch
+     15
+     16	      =000A		     x_start			     = 10
+     17	      =0005		     y_start			     = 5
+     18	      =003C		     len			     = 60
+     19	      =000A		     height			     = 10
+     20	      =0050		     window_len			     = 80
+     21	      =008D		     frame_color	     = 10001101b
+     22
+     23	0000			     .model tiny									     ;set 64+
+     24				     Kb	model
+     25	0000			     .code										     ;define+
+     26				     code block
+     27				     org 100h										     ;prog's+
+     28				     begging ram block
      29
-     30	010F  B8 4C00				     mov ax, 4c00h						     ;ax = cmd(4c)
-     31	0112  CD 21				     int 21h								     ;call  +
-     32				     scm
-     33
-     34				     ;------------------------------------------------------------------------------
-     35				     ; Draws string to console (x = 0, y = 0)
-     36				     ; Entry:		     BX	= string address
-     37				     ;				     DL	= string size
-     38				     ;				     DX	= color
-     39				     ; Exit:		     None
-     40				     ; Destroyed:    AX, BX, CX
-     41				     ;------------------------------------------------------------------------------
-     42
-     43	0114			     PrintString     proc
-     44
-     45	0114  BF 0000					     mov di, 0
-     46	0117  8A CA					     mov cl, dl
-     47
-     48	0119						     cycle:
-     49	0119  8A 07					     mov al, [bx]
-     50	011B  8A E6					     mov ah, dh
-     51	011D  AB					     stosw
-     52	011E  43					     inc bx
-     53	011F  E2 F8					     loop cycle
-     54
-     55	0121  C3					     ret								    +
-     56				     ;return function value
-     57	0122						     endp								    +
-Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 2
+     30	0100  BB B800		     Start:  mov bx, 0b800h
+     31	0103  8E C3				     mov es, bx
+     32	0105  BB 017Cr				     mov bx, offset String
+     33	0108  E8 002F				     call SetString
+     34	010B  BB 017Cr				     mov bx, offset String
+     35
+     36	010E  B6 8D				     mov dh, frame_color
+     37	0110  B2 3C				     mov dl, len
+     38	0112  BF 0000				     mov di, 0
+     39	0115  81 C7 0334			     add di, y_start * window_len * 2 +	x_start	* 2
+     40	0119  E8 0043				     call PrintString
+     41
+     42	011C  B9 0008				     mov cx, height - 2
+     43	011F					     cycle1:
+     44	011F  81 C7 00A0				     add di, window_len	* 2
+     45	0123  E8 0039					     call PrintString
+     46	0126  83 EB 03					     sub bx, 3
+     47	0129  E2 F4				     loop cycle1
+     48	012B  83 C3 03				     add bx, 3
+     49
+     50	012E  81 C7 00A0			     add di, window_len	* 2
+     51	0132  E8 002A				     call PrintString
+     52
+     53	0135  B8 4C00				     mov ax, 4c00h						     ;ax = cmd(4c)
+     54	0138  CD 21				     int 21h								     ;call  +
+     55				     scm
+     56
+     57				     ;------------------------------------------------------------------------------
+Turbo Assembler	 Version 4.1	    02/10/25 04:19:34	    Page 2
 border.asm
 
 
 
-     58				     ;proc's ending
-     59
-     60				     ;------------------------------------------------------------------------------
-     61
-     62	0122  31 32 33 34 35 36	37+  String db '123456789'
-     63	      38 39
-     64
-     65				     end     Start								     ;pog's ending
-Turbo Assembler	 Version 4.1	    02/10/25 02:46:41	    Page 3
+     58				     ; Set String
+     59				     ; Entry:		     None
+     60				     ; Exit:		     None
+     61				     ; Destroyed:    None
+     62				     ;------------------------------------------------------------------------------
+     63
+     64	013A			     SetString	     proc
+     65
+     66	013A  C6 07 C9					     mov byte ptr ds: [bx], left_top_corner
+     67	013D  43					     inc bx
+     68
+     69	013E  C6 07 CD					     mov byte ptr ds: [bx], top_line
+     70	0141  43					     inc bx
+     71
+     72	0142  C6 07 BB					     mov byte ptr ds: [bx], right_top_corner
+     73	0145  43					     inc bx
+     74
+     75	0146  C6 07 BA					     mov byte ptr ds: [bx], left_line
+     76	0149  43					     inc bx
+     77
+     78	014A  C6 07 20					     mov byte ptr ds: [bx], main_char
+     79	014D  43					     inc bx
+     80
+     81	014E  C6 07 BA					     mov byte ptr ds: [bx], right_line
+     82	0151  43					     inc bx
+     83
+     84	0152  C6 07 C8					     mov byte ptr ds: [bx], left_bottom_corner
+     85	0155  43					     inc bx
+     86
+     87	0156  C6 07 CD					     mov byte ptr ds: [bx], bottom_line
+     88	0159  43					     inc bx
+     89
+     90	015A  C6 07 BC					     mov byte ptr ds: [bx], right_bottom_corner
+     91	015D  43					     inc bx
+     92
+     93	015E  C3					     ret								    +
+     94				     ;return function value
+     95	015F						     endp								    +
+     96				     ;proc's ending
+     97
+     98				     ;------------------------------------------------------------------------------
+     99
+    100				     ;------------------------------------------------------------------------------
+    101				     ; Draws string to console
+    102				     ; Entry:		     BX	= string address
+    103				     ;				     DL	= string size
+    104				     ;				     DH	= color
+    105				     ; Exit:		     None
+    106				     ; Destroyed:    AX, BX, CX
+    107				     ;------------------------------------------------------------------------------
+    108
+    109	015F			     PrintString     proc
+    110
+    111	015F  8A E6					     mov ah, dh								    +
+    112				     ;set symbols color
+    113
+    114																    +
+Turbo Assembler	 Version 4.1	    02/10/25 04:19:34	    Page 3
+border.asm
+
+
+
+    115				     ;Print first string symbol
+    116	0161  8A 07					     mov al, [bx]						     ;al =  +
+    117				     *bx
+    118	0163  AB					     stosw								    +
+    119				     ;mov es: [di], ax / di += 2
+    120	0164  43					     inc bx								    +
+    121				     ;bx++
+    122
+    123																    +
+    124				     ;Print second string symbols
+    125	0165  8B F1					     mov si, cx
+    126	0167  8A CA					     mov cl, dl								    +
+    127				     ;counter =	dl
+    128	0169  80 E9 02					     sub cl, 2
+    129	016C						     cycle:								    +
+    130				     ;while
+    131	016C  8A 07						     mov al, [bx]					     ;al =  +
+    132				     *bx
+    133	016E  AB						     stosw							    +
+    134				     ;mov es: [bx], ax / di += 2
+    135	016F  E2 FB					     loop cycle								    +
+    136				     ;goto cycle
+    137	0171  43					     inc bx								    +
+    138				     ;bx++
+    139	0172  8B CE					     mov cx, si
+    140
+    141																    +
+    142				     ;Print third string symbol
+    143	0174  8A 07					     mov al, [bx]						     ;al =  +
+    144				     [bx]
+    145	0176  AB					     stosw								    +
+    146				     ;mov es: [bx], ax / di += 2
+    147	0177  43					     inc bx								    +
+    148				     ;bx++
+    149
+    150	0178  83 EF 78					     sub di, len * 2
+    151
+    152	017B  C3					     ret								    +
+    153				     ;return function value
+    154	017C						     endp								    +
+    155				     ;proc's ending
+    156
+    157				     ;------------------------------------------------------------------------------
+    158
+    159	017C  3C 5F 3E 7C 20 7C	3C+  String db '<_>| |<_>'
+    160	      5F 3E
+    161
+    162				     end     Start								     ;pog's ending
+Turbo Assembler	 Version 4.1	    02/10/25 04:19:34	    Page 4
 Symbol Table
 
 
@@ -83,7 +185,7 @@ Symbol Name			  Type	 Value
 
 ??DATE				  Text	 "02/10/25"
 ??FILENAME			  Text	 "border  "
-??TIME				  Text	 "02:46:40"
+??TIME				  Text	 "04:19:34"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @CODE				  Text	 DGROUP
@@ -97,22 +199,31 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
-CYCLE				  Near	 DGROUP:0119
+BOTTOM_LINE			  Number 00CD
+CYCLE				  Near	 DGROUP:016C
+CYCLE1				  Near	 DGROUP:011F
+FRAME_COLOR			  Number 008D
+HEIGHT				  Number 000A
 LEFT_BOTTOM_CORNER		  Number 00C8
 LEFT_LINE			  Number 00BA
 LEFT_TOP_CORNER			  Number 00C9
+LEN				  Number 003C
 MAIN_CHAR			  Number 0020
-PRINTSTRING			  Near	 DGROUP:0114
+PRINTSTRING			  Near	 DGROUP:015F
 RIGHT_BOTTOM_CORNER		  Number 00BC
 RIGHT_LINE			  Number 00BA
 RIGHT_TOP_CORNER		  Number 00BB
+SETSTRING			  Near	 DGROUP:013A
 START				  Near	 DGROUP:0100
-STRING				  Byte	 DGROUP:0122
+STRING				  Byte	 DGROUP:017C
 TOP_LINE			  Number 00CD
+WINDOW_LEN			  Number 0050
+X_START				  Number 000A
+Y_START				  Number 0005
 
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
   _DATA				  16  0000 Word	  Public  DATA
-  _TEXT				  16  012B Word	  Public  CODE
+  _TEXT				  16  0185 Word	  Public  CODE
 
