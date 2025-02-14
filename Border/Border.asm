@@ -3,6 +3,7 @@
 ;			@Rogov Anatoliy 08.02.2025 "Sivchuk Bad Day"
 ;------------------------------------------------------------------------------
 
+cmd_line_add		= 0081h									;cmd line address
 video_segment 		= 0b800h								;video segment
 window_len 			= 80									;window row length
 window_height 		= 25									;window column height
@@ -14,6 +15,7 @@ org 100h													;prog's beginning ram block
 Start:	mov bx, video_segment								;bx = video segment position
 		mov es, bx											;es = bx
 
+		call EnterData										;len, height
 		call CalcParam										;x_start, y_start, y_string
 
 		mov si, offset HeartFrameString						;si = &FrameStyleString
@@ -39,10 +41,97 @@ Start:	mov bx, video_segment								;bx = video segment position
 		int 21h												;call scm
 
 ;------------------------------------------------------------------------------
+; Enter the data for frame
+; Entry:		None
+; Exit:			None
+; Destroyed:	SI, BP
+;------------------------------------------------------------------------------
+
+EnterData	proc
+
+			mov si, cmd_line_add							;si = &cmd_line
+			call SkipSpaces									;skip spaces in cmd line
+			call Atoi										;bl = integer
+			mov bp, offset len								;bp = &len
+			mov [bp], bl									;len = bl
+
+			call SkipSpaces									;skip spaces in cmd line
+			call Atoi										;bl = integer
+			mov bp, offset height							;bp = &height
+			mov [bp], bl									;height = bl
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; ASCII code symbols to integer
+; Entry:		AL - first symbol
+; Exit:			BL - integer
+; Destroyed:	CX, BX, DX, AX
+;------------------------------------------------------------------------------
+
+Atoi	proc
+
+		mov cx, 1											;cx = 1
+		xor bx, bx											;bx = 0
+		xor dx, dx											;dx = 0
+		xor ah, ah											;ah = 0
+
+		get_symbol:											;<--------------------------|
+			cmp al, ' '										;if (al == ' ') zf = 1		|
+			je end_atoi										;if (zf == 1) goto end_atoi	|
+															;							|
+			push bx											;save bx					|
+			shl bx, 3										;bx *= 8					|
+															;							|
+			pop dx											;return bx: dx = bx			|
+			shl dx, 1										;dx *= 2					|
+			add bx, dx										;bx += dx					|
+															;							|
+			sub ax, 48										;ax -= 48					|
+			add bx, ax										;bx += ax					|
+															;							|
+			add cx, 2										;cx += 2					|
+			lodsb											;mov al, ds:[si]			|
+		loop get_symbol										;---------------------------|
+		end_atoi:
+
+		ret													;return function value
+		endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Skip spaces on cmd line address
+; Entry:		None
+; Exit:			None
+; Destroyed:	CX, AL
+;------------------------------------------------------------------------------
+
+SkipSpaces	proc
+
+			mov cx, 1										;cx = 1
+
+			cmd_skip_spc:									;<----------------------------------|
+				lodsb										;mov al, ds:[si]					|
+				cmp al, ' '									;if (al == ' ') zf = 1				|
+				jne end_cmd_skip_spc						;if (zf == 1) goto end_cmd_skip_spc	|
+				add cx, 2									;cx += 2							|
+			loop cmd_skip_spc								;-----------------------------------|
+			end_cmd_skip_spc:
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
 ; Calculate values of variables: x_start, y_start, y_string
 ; Entry:		None
 ; Exit:			None
-; Destroyed:	AX, BX, DX, DP
+; Destroyed:	AX, BX, DX, BP
 ;------------------------------------------------------------------------------
 
 CalcParam	proc
@@ -77,12 +166,12 @@ CalcParam	proc
 ; Eval shift of frame inside string
 ; Entry:		CX = string length
 ; Exit:			None
-; Destroyed:	DI, BP, AX
+; Destroyed:	DI, BP, AX, BX
 ;------------------------------------------------------------------------------
 
 EvalShift	proc
 
-			;di = y_string * window_len * 2 + (x_start + len / 2) * 2
+			;di = y_string * window_len * 2 + (x_start + (cx - len) / 2) * 2
 			mov bp, offset y_string							;bp = &y_start
 			mov al, [bp]									;al = y_start
 			shl al, 1										;al *= 2
@@ -95,20 +184,18 @@ EvalShift	proc
 
 			mov bp, offset x_start							;bp = &x_start
 			xor ah, ah										;ah = 0
-			mov al, [bp]									;ax = x_start
-			mov bp, cx										;bp = cx
-			shr bp, 1										;bp /= 2
-			add ax, bp										;ax += bp
-			shl al, 1										;al /= 2
-			add di, ax										;di += 2 * x_start
-
-			mov bp, cx										;bp = cx
-			shr bp, 1										;bp /= 2
-			sub di, bp										;di -= bp
+			xor bh, bh										;bh = 0
+			mov al, [bp]									;al = x_start
+			mov bp, offset len								;bp = &len
+			mov bl, [bp]									;bl = len
+			sub bl, cl										;bl -= cl
+			shr bl, 1										;bl = (cx - len) / 2
+			add al, bl										;x_start += (cx - len) / 2
+			shl al, 1										;al *= 2
+			add di, ax										;di += al
 
 			shr di, 1										;di /= 2
 			shl di, 1										;di *= 2
-			sub di, 2										;di -= 2run.bat
 
 			ret												;return function value
 			endp											;proc's ending
@@ -245,7 +332,7 @@ PrintString	proc
 
 ;------------------------------------------------------------------------------
 
-len 				db 30									;frame row length
+len 				db 0									;frame row length
 height 				db 9									;frame column height
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
