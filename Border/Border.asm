@@ -6,8 +6,6 @@
 video_segment 		= 0b800h								;video segment
 window_len 			= 80									;window row length
 window_height 		= 25									;window column height
-frame_color 		= 01001101b								;color of frame element
-string_color 		= 11001101b								;color of frame inside string
 
 .model tiny													;set 64 Kb model
 .code														;define code block
@@ -18,11 +16,11 @@ Start:	mov bx, video_segment								;bx = video segment position
 
 		call CalcParam										;x_start, y_start, y_string
 
-		mov si, offset HeartFrameString					;si = &FrameStyleString
-		mov bx, offset height
-		mov dh, [bx]										;dh = frame height
-		mov bx, offset len
-		mov dl, [bx]										;dl = frame length
+		mov si, offset HeartFrameString						;si = &FrameStyleString
+		mov bp, offset height
+		mov dh, [bp]										;dh = frame height
+		mov bp, offset len
+		mov dl, [bp]										;dl = frame length
 		xor di, di											;di = 0
 		call DrawFrame
 
@@ -33,7 +31,8 @@ Start:	mov bx, video_segment								;bx = video segment position
 		mov si, offset InsideString							;si = &inside frame string
 		call EvalShift
 
-		mov ah, string_color								;ah = string color
+		mov bp, offset string_color							;bp = &string_color
+		mov ah, [bp]										;ah = string color
 		call PrintInsideString
 
 		mov ax, 4c00h										;ax = cmd(4c)
@@ -48,26 +47,26 @@ Start:	mov bx, video_segment								;bx = video segment position
 
 CalcParam	proc
 
-			mov bx, offset len								;bx = &len
-			mov al, [bx]									;ax = len
-			mov bx, offset height							;bx = &height
-			mov dl, [bx]									;dx = height
-			mov bx, offset x_start							;bx = &x_start
-			mov bp, window_len / 2							;bp = 80 / 2
-			mov [bx], bp									;x_start = 40
+			mov bp, offset len								;bx = &len
+			mov al, [bp]									;ax = len
+			mov bp, offset height							;bx = &height
+			mov dl, [bp]									;dx = height
+			mov bp, offset x_start							;bx = &x_start
+			mov bl, window_len / 2							;bp = 80 / 2
+			mov [bp], bl									;x_start = 40
 			shr ax, 1										;ax /= 2
-			sub [bx], ax									;x_start -= len / 2
+			sub [bp], al									;x_start -= len / 2
 
-			mov bx, offset y_start							;bx = &y_start
-			mov bp, window_height / 2						;bp = 25 / 2
-			mov [bx], bp									;y_start = 25 / 2
+			mov bp, offset y_start							;bx = &y_start
+			mov bl, window_height / 2						;bp = 25 / 2
+			mov [bp], bl									;y_start = 25 / 2
 			shr dx, 1										;dx /= 2
-			sub [bx], dx									;y_start -= height / 2
+			sub [bp], dl									;y_start -= height / 2
 
-			mov bp, [bx]									;bp = y_start
-			mov bx, offset y_string							;bx = &y_string
-			mov [bx], bp									;y_string = height / 2
-			add [bx], dx									;y_string += height / 2
+			mov bl, [bp]									;bp = y_start
+			mov bp, offset y_string							;bx = &y_string
+			mov [bp], bl									;y_string = height / 2
+			add [bp], dl									;y_string += height / 2
 
 			ret												;return function value
 			endp											;proc's ending
@@ -110,7 +109,6 @@ EvalShift	proc
 			shr di, 1										;di /= 2
 			shl di, 1										;di *= 2
 			sub di, 2										;di -= 2run.bat
-
 
 			ret												;return function value
 			endp											;proc's ending
@@ -218,7 +216,8 @@ DrawFrame	proc
 
 PrintString	proc
 
-			mov ah, frame_color								;set symbols color
+			mov bx, offset frame_color						;bp = &frame_color
+			mov ah, [bx]									;set symbols color
 
 			lodsb											;mov al, ds:[si]
 			stosw											;mov es:[di], ax / add di, 2
@@ -236,9 +235,9 @@ PrintString	proc
 			lodsb											;mov al, ds:[si]
 			stosw											;mov es:[di], ax / add di, 2
 
-			mov bl, dl
-			mov bh, 00h
-			shl bx, 1
+			mov bl, dl										;bl = dl
+			xor bh, bh										;bh = 0
+			shl bx, 1										;bx *= 2
 			sub di, bx										;set di to line beginning
 
 			ret												;return function value
@@ -251,6 +250,9 @@ height 				db 9									;frame column height
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
+frame_color 		db 01001101b							;frame element color
+string_color 		db 11001101b							;color of frame inside string
+
 ProgNameString		db 'border.com$'
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
 SingleFrameString	db 'ÚÄ¿³ ³ÀÄÙ'
