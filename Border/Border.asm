@@ -6,32 +6,29 @@
 video_segment 		= 0b800h								;video segment
 window_len 			= 80									;window row length
 window_height 		= 25									;window column height
-frame_color 		= 00001010b								;color of frame element
-string_color 		= 10001010b								;color of frame inside string
-
-len 				= 30									;frame row length
-height 				= 9										;frame column height
-
-x_start 			= (window_len - len) / 2				;x frame start position
-y_start 			= (window_height - height) / 2			;y frame start position
-y_string 			= (height / 2 + y_start)				;y string start position
+frame_color 		= 01001101b								;color of frame element
+string_color 		= 11001101b								;color of frame inside string
 
 .model tiny													;set 64 Kb model
 .code														;define code block
-org 100h													;prog's begging ram block
+org 100h													;prog's beginning ram block
 
 Start:	mov bx, video_segment								;bx = video segment position
 		mov es, bx											;es = bx
 
-		mov si, offset OutsideFrameString					;si = &FrameStyleString
-		mov dh, height										;dh = frame height
-		mov dl, len											;dl = frame length
+		call CalcParam										;x_start, y_start, y_string
+
+		mov si, offset HeartFrameString					;si = &FrameStyleString
+		mov bx, offset height
+		mov dh, [bx]										;dh = frame height
+		mov bx, offset len
+		mov dl, [bx]										;dl = frame length
 		xor di, di											;di = 0
 		call DrawFrame
 
 		mov si, offset InsideString							;si = &inside frame string
 		xor cx, cx											;cx = 0
-		call StrLen
+		call StrLen											;cx = len(si)
 
 		mov si, offset InsideString							;si = &inside frame string
 		call EvalShift
@@ -43,19 +40,77 @@ Start:	mov bx, video_segment								;bx = video segment position
 		int 21h												;call scm
 
 ;------------------------------------------------------------------------------
+; Calculate values of variables: x_start, y_start, y_string
+; Entry:		None
+; Exit:			None
+; Destroyed:	AX, BX, DX, DP
+;------------------------------------------------------------------------------
+
+CalcParam	proc
+
+			mov bx, offset len								;bx = &len
+			mov al, [bx]									;ax = len
+			mov bx, offset height							;bx = &height
+			mov dl, [bx]									;dx = height
+			mov bx, offset x_start							;bx = &x_start
+			mov bp, window_len / 2							;bp = 80 / 2
+			mov [bx], bp									;x_start = 40
+			shr ax, 1										;ax /= 2
+			sub [bx], ax									;x_start -= len / 2
+
+			mov bx, offset y_start							;bx = &y_start
+			mov bp, window_height / 2						;bp = 25 / 2
+			mov [bx], bp									;y_start = 25 / 2
+			shr dx, 1										;dx /= 2
+			sub [bx], dx									;y_start -= height / 2
+
+			mov bp, [bx]									;bp = y_start
+			mov bx, offset y_string							;bx = &y_string
+			mov [bx], bp									;y_string = height / 2
+			add [bx], dx									;y_string += height / 2
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
 ; Eval shift of frame inside string
 ; Entry:		CX = string length
 ; Exit:			None
-; Destroyed:	DI, BX
+; Destroyed:	DI, BP, AX
 ;------------------------------------------------------------------------------
 
 EvalShift	proc
 
-			mov di, y_string * window_len * 2 + (x_start + len / 2) * 2
-			mov bx, cx										;bx = cx
-			shr bx, 1										;bx /= 2
-			sub di, bx										;di -= bx
-			sub di, bx										;di -= bx
+			;di = y_string * window_len * 2 + (x_start + len / 2) * 2
+			mov bp, offset y_string							;bp = &y_start
+			mov al, [bp]									;al = y_start
+			shl al, 1										;al *= 2
+			xor ah, ah										;ah = 0
+			mov bp, window_len								;bp = 80
+			push dx											;save size of frame in stack
+			mul bp											;ax = 2 * y_start * 80
+			pop dx											;return size of frame from stack to dx÷
+			mov di, ax										;di = ax
+
+			mov bp, offset x_start							;bp = &x_start
+			xor ah, ah										;ah = 0
+			mov al, [bp]									;ax = x_start
+			mov bp, cx										;bp = cx
+			shr bp, 1										;bp /= 2
+			add ax, bp										;ax += bp
+			shl al, 1										;al /= 2
+			add di, ax										;di += 2 * x_start
+
+			mov bp, cx										;bp = cx
+			shr bp, 1										;bp /= 2
+			sub di, bp										;di -= bp
+
+			shr di, 1										;di /= 2
+			shl di, 1										;di *= 2
+			sub di, 2										;di -= 2run.bat
+
 
 			ret												;return function value
 			endp											;proc's ending
@@ -66,8 +121,8 @@ EvalShift	proc
 ;------------------------------------------------------------------------------
 ; Eval string length with '$' terminal symbol
 ; Entry: 		SI = data string address
-; Exit:			None
-; Destroyed:	BX, AL, CX
+; Exit:			CX
+; Destroyed:	SI, AL, CX
 ;------------------------------------------------------------------------------
 
 StrLen	proc
@@ -120,10 +175,24 @@ PrintInsideString	proc
 
 DrawFrame	proc
 
-			add di, y_start * window_len * 2 + x_start * 2	;frame top line shifting
+			mov bp, offset y_start							;bp = &y_start
+			mov al, [bp]									;al = y_start
+			shl al, 1										;al *= 2
+			mov bp, window_len								;bp = 80
+			push dx											;save size of frame in stack
+			mul bp											;ax = 2 * y_start * 80
+			pop dx											;return size of frame from stack to dx
+			mov di, ax										;di = ax
+			mov bp, offset x_start							;bp = &x_start
+			mov al, [bp]									;ax = x_start
+			shl al, 1										;ax *= 2
+			xor ah, ah										;ah = 0
+			add di, ax										;di += 2 * x_start
 			call PrintString								;print string
 
-			mov cx, height - 2								;count of center frame line
+			mov cl, dh										;loop on length of frame string
+			xor ch, ch										;ch = 0
+			sub cx, 2										;without first and lsat symbols of string
 			cycle1:											;<--------------------------|
 				add di, window_len * 2						;di += window_len * 2		|
 				call PrintString							;print string				|
@@ -141,7 +210,7 @@ DrawFrame	proc
 
 ;------------------------------------------------------------------------------
 ; Draws string to console in format: s1s2....s2s3
-; Entry: 		BX = string address
+; Entry: 		SI = string address
 ;				DL = string len
 ; Exit:			None
 ; Destroyed:	AX, BX, CX, SI
@@ -154,7 +223,7 @@ PrintString	proc
 			lodsb											;mov al, ds:[si]
 			stosw											;mov es:[di], ax / add di, 2
 
-			mov bx, cx										;save prev loop cnt
+			push cx											;save prev loop cnt
 			mov cl, dl										;counter = dl
 			sub cl, 2										;without top and bottom line
 			cycle:											;<------------------------------|
@@ -162,18 +231,27 @@ PrintString	proc
 				stosw										;mov es:[di], ax / add di, 2	|
 			loop cycle										;-------------------------------|
 			inc si											;bx++
-			mov cx, bx										;return prev loop cnt
+			pop cx											;return prev loop cnt
 
 			lodsb											;mov al, ds:[si]
 			stosw											;mov es:[di], ax / add di, 2
 
-			sub di, len * 2									;set di to line beginning
+			mov bl, dl
+			mov bh, 00h
+			shl bx, 1
+			sub di, bx										;set di to line beginning
 
 			ret												;return function value
 			endp											;proc's ending
 
 ;------------------------------------------------------------------------------
 
+len 				db 30									;frame row length
+height 				db 9									;frame column height
+x_start 			db 0									;x frame start position
+y_start 			db 0									;y frame start position
+y_string 			db 0									;y string start position
+ProgNameString		db 'border.com$'
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
 SingleFrameString	db 'ÚÄ¿³ ³ÀÄÙ'
 HeartFrameString	db ' '
@@ -182,6 +260,6 @@ MathFrameString		db 'ûûûû ûûûû'
 PatriotFrameString	db 'RTRT TRTR'
 PointedFrameString	db '²±²° °²±²'
 OutsideFrameString	db 'ÀÁÙ´ Ã¿ÂÚ'
-InsideString 		db 'I wanna sleep!$'
+InsideString 		db "Saint Valentin's Day!$"
 
 end 	Start												;prog's ending
