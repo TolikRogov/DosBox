@@ -16,7 +16,8 @@ Start:	mov bx, video_segment								;bx = video segment position
 		mov es, bx											;es = bx
 
 		call EnterData										;len, height
-		call CalcParam										;x_start, y_start, y_string, si
+		call CalcParam										;x_start, y_start, y_string
+		call SetStyle										;calculate si
 
 		mov bp, offset height								;bp = &height
 		mov dh, [bp]										;dh = height
@@ -30,19 +31,90 @@ Start:	mov bx, video_segment								;bx = video segment position
 		int 21h												;call scm
 
 ;------------------------------------------------------------------------------
+; Set frame style
+; Entry:		None
+; Exit:			SI
+; Destroyed:	SI, BP, BX, DX
+;------------------------------------------------------------------------------
+
+SetStyle	proc
+
+			mov bp, offset frame_style						;bp = &frame_style
+			xor bx, bx										;bx = 0
+			mov bl, [bp]									;bl = frame_style
+
+			push si											;save si
+			call SkipSpaces									;skip spaces
+			call SkipQuot									;skip while ne quot
+			call SkipSpaces									;skip spaces
+			mov bp, offset str_data_pos						;bp = &str_data_pos
+			mov [bp], si									;str_data_pos = si
+			pop si											;return si
+
+			cmp bl, 0										;if (bl == 0) jz = 1
+			je own_style									;if (jz == 1) goto own_style
+
+			mov bp, offset frame_style						;bp = &frame_style
+			sub bl, 1										;bl -= 1
+			push bx											;save bx
+			shl bl, 3										;bl *= 8
+			pop dx											;return bx to dx
+			add bl, dl										;bl += dl
+			inc bl											;bl += 1
+			add bp, bx										;bp += bx
+			mov si, bp										;si = bp
+
+			ret												;return function value
+			endp											;proc's ending
+
+			own_style:
+			call SkipSpaces									;skip spaces on si
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Skip quotation mark on si address
+; Entry:		SI - symbol on or before quotation mark
+; Exit:			SI - first symbol equal to quotation mark
+; Destroyed:	CX, AL
+;------------------------------------------------------------------------------
+
+SkipQuot	proc
+
+			mov cx, 1										;cx = 1
+
+			cmd_skip_quot:									;<----------------------------------|
+				lodsb										;mov al, ds:[si]					|
+				cmp al, '"'									;if (al == ' ') zf = 1				|
+				je end_cmd_skip_quot						;if (zf == 1) goto end_cmd_skip_quot|
+				add cx, 2									;cx += 2							|
+			loop cmd_skip_quot								;-----------------------------------|
+			end_cmd_skip_quot:
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
 ; Draw string inside the frame
 ; Entry:		None
 ; Exit:			None
-; Destroyed:	SI, BP
+; Destroyed:	SI, BP, CX, AH
 ;------------------------------------------------------------------------------
 
 DrawString	proc
 
-			mov si, offset InsideString						;si = &inside frame string
+			mov bp, offset str_data_pos						;bp = &str_data_pos
+			mov si, [bp]									;si = str_data_pos
 			xor cx, cx										;cx = 0
 			call StrLen										;cx = len(si)
 
-			mov si, offset InsideString						;si = &inside frame string
+			mov bp, offset str_data_pos
+			mov si, [bp]									;si = &inside frame string
 			call EvalShift									;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2
 
 			mov bp, offset frame_color						;bp = &string_color
@@ -219,18 +291,6 @@ CalcParam	proc
 			mov bp, offset y_string							;bx = &y_string
 			mov [bp], bl									;y_string = height / 2
 			add [bp], dl									;y_string += height / 2
-
-			mov bp, offset frame_style						;bp = &frame_style
-			xor bx, bx										;bx = 0
-			mov bl, [bp]									;bl = frame_style
-			sub bl, 1										;bl -= 1
-			push bx											;save bx
-			shl bl, 3										;bl *= 8
-			pop dx											;return bx to dx
-			add bl, dl										;bl += dl
-			inc bl											;bl += 1
-			add bp, bx										;bp += bx
-			mov si, bp										;si = bp
 
 			ret												;return function value
 			endp											;proc's ending
@@ -414,6 +474,7 @@ frame_color 		db 0									;frame element color
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
+str_data_pos 		db 0									;cmd line position of string
 
 frame_style 		db 1									;frame style
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
