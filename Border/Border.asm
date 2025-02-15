@@ -19,26 +19,41 @@ Start:	mov bx, video_segment								;bx = video segment position
 		call CalcParam										;x_start, y_start, y_string
 
 		mov si, offset HeartFrameString						;si = &FrameStyleString
-		mov bp, offset height
-		mov dh, [bp]										;dh = frame height
-		mov bp, offset len
-		mov dl, [bp]										;dl = frame length
+		mov bp, offset height								;bp = &height
+		mov dh, [bp]										;dh = height
+		mov bp, offset len									;bp = &len
+		mov dl, [bp]										;dl = len
 		xor di, di											;di = 0
-		call DrawFrame
-
-		mov si, offset InsideString							;si = &inside frame string
-		xor cx, cx											;cx = 0
-		call StrLen											;cx = len(si)
-
-		mov si, offset InsideString							;si = &inside frame string
-		call EvalShift
-
-		mov bp, offset string_color							;bp = &string_color
-		mov ah, [bp]										;ah = string color
-		call PrintInsideString
+		call DrawFrame										;Drawing frame
+		call DrawString										;Drawing string inside frame
 
 		mov ax, 4c00h										;ax = cmd(4c)
 		int 21h												;call scm
+
+;------------------------------------------------------------------------------
+; Draw string inside the frame
+; Entry:		None
+; Exit:			None
+; Destroyed:	SI, BP
+;------------------------------------------------------------------------------
+
+DrawString	proc
+
+			mov si, offset InsideString						;si = &inside frame string
+			xor cx, cx										;cx = 0
+			call StrLen										;cx = len(si)
+
+			mov si, offset InsideString						;si = &inside frame string
+			call EvalShift									;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2
+
+			mov bp, offset frame_color						;bp = &string_color
+			mov ah, [bp]									;ah = string color
+			call PrintInsideString
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; Enter the data for frame
@@ -60,8 +75,52 @@ EnterData	proc
 			mov bp, offset height							;bp = &height
 			mov [bp], bl									;height = bl
 
+			call SkipSpaces									;skip spaces in cmd line
+			call Atoh										;bl = integer
+			mov bp, offset frame_color						;bp = &height
+			mov [bp], bl									;height = bl
+
 			ret												;return function value
 			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; ASCII code symbols to hex integer (ABCDEF instead of abcdef)
+; Entry:		AL - first symbol
+; Exit:			BL - hex
+; Destroyed:	CX, BX, DX, AX
+;------------------------------------------------------------------------------
+
+Atoh	proc
+
+		mov cx, 1											;cx = 1
+		xor bx, bx											;bx = 0
+		xor dx, dx											;dx = 0
+		xor ah, ah											;ah = 0
+
+		get_hex:											;<--------------------------|
+			cmp al, ' '										;if (al == ' ') zf = 1		|
+			je end_atoh										;if (zf == 1) goto end_atoi	|
+															;							|
+			shl bx, 4										;bx *= 16					|
+															;							|
+			cmp al, 'A'										;if (al - 65 < 0) fs = 1	|
+			jns no_sign										;if (fs != 1) goto no_sign	|
+			sub ax, '0'										;ax -= 48					|
+			jmp both										;goto both					|
+			no_sign:										;							|
+				sub ax, 55									;ax -= 55					|
+			both:											;							|
+			add bx, ax										;bx += ax					|
+															;							|
+			add cx, 2										;cx += 2					|
+			lodsb											;mov al, ds:[si]			|
+		loop get_hex										;---------------------------|
+		end_atoh:
+
+		ret													;return function value
+		endp												;proc's ending
 
 ;------------------------------------------------------------------------------
 
@@ -105,8 +164,8 @@ Atoi	proc
 
 ;------------------------------------------------------------------------------
 ; Skip spaces on cmd line address
-; Entry:		None
-; Exit:			None
+; Entry:		SI - string beginning with ' '(20) space
+; Exit:			SI - first non space symbol
 ; Destroyed:	CX, AL
 ;------------------------------------------------------------------------------
 
@@ -334,11 +393,12 @@ PrintString	proc
 
 len 				db 0									;frame row length
 height 				db 9									;frame column height
+
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
-frame_color 		db 01001101b							;frame element color
-string_color 		db 11001101b							;color of frame inside string
+
+frame_color 		db 4dh									;frame element color
 
 ProgNameString		db 'border.com$'
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
