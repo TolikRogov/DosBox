@@ -16,9 +16,8 @@ Start:	mov bx, video_segment								;bx = video segment position
 		mov es, bx											;es = bx
 
 		call EnterData										;len, height
-		call CalcParam										;x_start, y_start, y_string
+		call CalcParam										;x_start, y_start, y_string, si
 
-		mov si, offset HeartFrameString						;si = &FrameStyleString
 		mov bp, offset height								;bp = &height
 		mov dh, [bp]										;dh = height
 		mov bp, offset len									;bp = &len
@@ -76,9 +75,14 @@ EnterData	proc
 			mov [bp], bl									;height = bl
 
 			call SkipSpaces									;skip spaces in cmd line
-			call Atoh										;bl = integer
+			call Atoh										;bl = hex
 			mov bp, offset frame_color						;bp = &height
-			mov [bp], bl									;height = bl
+			mov [bp], bl									;frame_color = bl
+
+			call SkipSpaces									;skip spaces in cmd line
+			call Atoi										;bl = integer
+			mov bp, offset frame_style						;bp = &style
+			mov [bp], bl									;frame_style = bl
 
 			ret												;return function value
 			endp											;proc's ending
@@ -215,6 +219,18 @@ CalcParam	proc
 			mov bp, offset y_string							;bx = &y_string
 			mov [bp], bl									;y_string = height / 2
 			add [bp], dl									;y_string += height / 2
+
+			mov bp, offset frame_style						;bp = &frame_style
+			xor bx, bx										;bx = 0
+			mov bl, [bp]									;bl = frame_style
+			sub bl, 1										;bl -= 1
+			push bx											;save bx
+			shl bl, 3										;bl *= 8
+			pop dx											;return bx to dx
+			add bl, dl										;bl += dl
+			inc bl											;bl += 1
+			add bp, bx										;bp += bx
+			mov si, bp										;si = bp
 
 			ret												;return function value
 			endp											;proc's ending
@@ -392,15 +408,14 @@ PrintString	proc
 ;------------------------------------------------------------------------------
 
 len 				db 0									;frame row length
-height 				db 9									;frame column height
+height 				db 0									;frame column height
+frame_color 		db 0									;frame element color
 
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
 
-frame_color 		db 4dh									;frame element color
-
-ProgNameString		db 'border.com$'
+frame_style 		db 1									;frame style
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
 SingleFrameString	db 'ÚÄ¿³ ³ÀÄÙ'
 HeartFrameString	db ' '
