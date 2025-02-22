@@ -19,10 +19,8 @@ Start:	mov bx, video_segment								;bx = video segment position
 		call CalcParam										;x_start, y_start, y_string
 		call SetStyle										;calculate si
 
-		mov bp, offset height								;bp = &height
-		mov dh, [bp]										;dh = height
-		mov bp, offset len									;bp = &len
-		mov dl, [bp]										;dl = len
+		mov dh, height										;dh = height
+		mov dl, len											;dl = len
 		xor di, di											;di = 0
 		call DrawFrame										;Drawing frame
 		call DrawString										;Drawing string inside frame
@@ -39,9 +37,8 @@ Start:	mov bx, video_segment								;bx = video segment position
 
 SetStyle	proc
 
-			mov bp, offset frame_style						;bp = &frame_style
 			xor bx, bx										;bx = 0
-			mov bl, [bp]									;bl = frame_style
+			mov bl, frame_style								;bl = frame_style
 
 			push si											;save si
 			call SkipSpaces									;skip spaces
@@ -117,8 +114,7 @@ DrawString	proc
 			mov si, [bp]									;si = &inside frame string
 			call EvalShift									;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2
 
-			mov bp, offset frame_color						;bp = &string_color
-			mov ah, [bp]									;ah = string color
+			mov ah, frame_color								;ah = string color
 			call PrintInsideString
 
 			ret												;return function value
@@ -135,7 +131,7 @@ DrawString	proc
 
 EnterData	proc
 
-			mov si, cmd_line_add							;si = &cmd_line
+			mov si, cmd_line_add							;si = cmd_line
 			call SkipSpaces									;skip spaces in cmd line
 			call Atoi										;bl = integer
 			mov bp, offset len								;bp = &len
@@ -271,23 +267,19 @@ SkipSpaces	proc
 
 CalcParam	proc
 
-			mov bp, offset len								;bx = &len
-			mov al, [bp]									;ax = len
-			mov bp, offset height							;bx = &height
-			mov dl, [bp]									;dx = height
-			mov bp, offset x_start							;bx = &x_start
+			mov al, len										;al = len
+			mov dl, height									;dl = height
 			mov bl, window_len / 2							;bp = 80 / 2
-			mov [bp], bl									;x_start = 40
+			mov x_start, bl									;x_start = 40
 			shr ax, 1										;ax /= 2
-			sub [bp], al									;x_start -= len / 2
+			sub x_start, al									;x_start -= len / 2
 
-			mov bp, offset y_start							;bx = &y_start
 			mov bl, window_height / 2						;bp = 25 / 2
-			mov [bp], bl									;y_start = 25 / 2
+			mov y_start, bl									;y_start = 25 / 2
 			shr dx, 1										;dx /= 2
-			sub [bp], dl									;y_start -= height / 2
+			sub y_start, dl									;y_start -= height / 2
 
-			mov bl, [bp]									;bp = y_start
+			mov bl, y_start									;bp = y_start
 			mov bp, offset y_string							;bx = &y_string
 			mov [bp], bl									;y_string = height / 2
 			add [bp], dl									;y_string += height / 2
@@ -307,8 +299,7 @@ CalcParam	proc
 EvalShift	proc
 
 			;di = y_string * window_len * 2 + (x_start + (cx - len) / 2) * 2
-			mov bp, offset y_string							;bp = &y_start
-			mov al, [bp]									;al = y_start
+			mov al, y_string								;al = y_string
 			shl al, 1										;al *= 2
 			xor ah, ah										;ah = 0
 			mov bp, window_len								;bp = 80
@@ -317,12 +308,11 @@ EvalShift	proc
 			pop dx											;return size of frame from stack to dx÷
 			mov di, ax										;di = ax
 
-			mov bp, offset x_start							;bp = &x_start
 			xor ah, ah										;ah = 0
 			xor bh, bh										;bh = 0
-			mov al, [bp]									;al = x_start
+			mov al, x_start									;al = x_start
 			mov bp, offset len								;bp = &len
-			mov bl, [bp]									;bl = len
+			mov bl, len										;bl = len
 			sub bl, cl										;bl -= cl
 			shr bl, 1										;bl = (cx - len) / 2
 			add al, bl										;x_start += (cx - len) / 2
@@ -395,16 +385,14 @@ PrintInsideString	proc
 
 DrawFrame	proc
 
-			mov bp, offset y_start							;bp = &y_start
-			mov al, [bp]									;al = y_start
+			mov al, y_start									;al = y_start
 			shl al, 1										;al *= 2
 			mov bp, window_len								;bp = 80
 			push dx											;save size of frame in stack
 			mul bp											;ax = 2 * y_start * 80
 			pop dx											;return size of frame from stack to dx
 			mov di, ax										;di = ax
-			mov bp, offset x_start							;bp = &x_start
-			mov al, [bp]									;ax = x_start
+			mov al, x_start									;ax = x_start
 			shl al, 1										;ax *= 2
 			xor ah, ah										;ah = 0
 			add di, ax										;di += 2 * x_start
@@ -438,8 +426,7 @@ DrawFrame	proc
 
 PrintString	proc
 
-			mov bx, offset frame_color						;bp = &frame_color
-			mov ah, [bx]									;set symbols color
+			mov ah, frame_color								;set symbols color
 
 			lodsb											;mov al, ds:[si]
 			stosw											;mov es:[di], ax / add di, 2
@@ -447,8 +434,8 @@ PrintString	proc
 			push cx											;save prev loop cnt
 			mov cl, dl										;counter = dl
 			sub cl, 2										;without top and bottom line
+			mov al, [si]									;al = [si]
 			cycle:											;<------------------------------|
-				mov al, [si]								;al = [si]						|
 				stosw										;mov es:[di], ax / add di, 2	|
 			loop cycle										;-------------------------------|
 			inc si											;bx++
