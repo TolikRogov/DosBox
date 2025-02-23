@@ -7,26 +7,102 @@ cmd_line_add		= 0081h									;cmd line address
 video_segment 		= 0b800h								;video segment
 window_len 			= 80									;window row length
 window_height 		= 25									;window column height
+reg_in_frame		= 4										;amount of registers in frame
 
 .model tiny													;set 64 Kb model
 .code														;define code block
 org 100h													;prog's beginning ram block
 
-Start:	mov bx, video_segment								;bx = video segment position
-		mov es, bx											;es = bx
+Start:	xor ax, ax											;ax = 0
+		mov es, ax											;es = 0
+		mov bx, 09h * 4										;bx = &int 09h
 
-		call EnterData										;len, height
-		call CalcParam										;x_start, y_start, y_string
-		call SetStyle										;calculate si
+		mov ax, es:[bx]										;ax = old09h offset
+		mov old09ofs, ax									;old09fs = ax
+		mov ax, es:[bx + 2]									;ax = old09h segment
+		mov old09seg, ax									;old09seg = ax
 
-		mov dh, height										;dh = height
-		mov dl, len											;dl = len
-		xor di, di											;di = 0
-		call DrawFrame										;Drawing frame
-		call DrawString										;Drawing string inside frame
+		mov es:[bx], offset New09h							;change 09h interrupt function by mine
+		mov ax, cs											;ax = cs
+		mov es:[bx + 2], ax									;current segment
 
-		mov ax, 4c00h										;ax = cmd(4c)
-		int 21h												;call scm
+		mov ax, 3100h										;make program resident
+		mov dx, offset EOP									;dx = &EOP
+		shr dx, 4											;dx /= 4
+		inc dx												;dx += 1
+		int 21h												;31 function of 21 interrupt
+
+;------------------------------------------------------------------------------
+; New procedural handler of 09h interrupt
+; Entry: 		NONE
+; Exit: 		NONE
+; Destroyed:	NONE
+;------------------------------------------------------------------------------
+
+New09h 	proc
+		push ax bx cx dx es si bp							;save all registers
+
+		in al, 60h											;al = scan code from 60h port
+		cmp al, 58h											;if (al == F12) zf = 1
+		jne skip											;if (zf != 1) goto skip --------|
+			push ax bx cx dx es si bp ds					;save all registers				|
+															;								|
+			mov bx, cs										;bx = code segment				|
+			mov ds, bx										;data segment = code segment	|
+			call MainBorder									;Main Border function			|
+															;								|
+			pop ds bp si es dx cx bx ax						;return all registers			|
+		skip:												;<------------------------------|
+
+		;say that ready to input new button by blink the bit
+		in al, 61h											;al = value from 61h keyboard port
+		mov ah, al											;ah = al
+		or al, 80h											;set the highest bit
+		out 61h, al											;out al to 61h keyboard port
+		mov al, ah											;al = ah
+		out 61h, al											;out al to 61h keyboard port
+
+		mov al, 20h											;non-specific end of interrupt
+		out 20h, al											;interrupt controller port
+
+		pop bp si es dx cx bx ax							;return all registers after interrupt
+		 	db 0eah											;jump to old procedural handler of 09h interrupt
+old09ofs 	dw 0											;previous offset
+old09seg 	dw 0											;in segment
+		endp
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Main Border
+; Entry:		None
+; Exit:			SI
+; Destroyed:	SI, BP, BX, DX
+;------------------------------------------------------------------------------
+
+MainBorder	proc
+
+			xor ax, ax										;ax = 0
+			xor bx, bx										;bx = 0
+			xor cx, cx										;cx = 0
+			xor dx, dx										;dx = 0
+
+			mov bx, video_segment							;bx = video segment position
+			mov es, bx										;es = bx
+
+			call CalcParam									;x_start, y_start, y_string
+			call SetStyle									;calculate si
+
+			mov dh, height									;dh = height
+			mov dl, len										;dl = len
+			xor di, di										;di = 0;
+			call DrawFrame									;Drawing frame
+			call DrawString									;Drawing string inside frame
+
+			ret												;return function value
+			endp											;proc's ending
+
+;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; Set frame style
@@ -37,59 +113,12 @@ Start:	mov bx, video_segment								;bx = video segment position
 
 SetStyle	proc
 
-			xor bx, bx										;bx = 0
-			mov bl, frame_style								;bl = frame_style
-
-			push si											;save si
-			call SkipSpaces									;skip spaces
-			call SkipQuot									;skip while ne quot
-			call SkipSpaces									;skip spaces
+			xor dx, dx										;dx = 0
+			mov dx, offset AXString							;dx = &AXString
 			mov bp, offset str_data_pos						;bp = &str_data_pos
-			mov [bp], si									;str_data_pos = si
-			pop si											;return si
+			mov [bp], dx									;str_data_pos = AXString
 
-			cmp bl, 0										;if (bl == 0) jz = 1
-			je own_style									;if (jz == 1) goto own_style
-
-			mov bp, offset frame_style						;bp = &frame_style
-			sub bl, 1										;bl -= 1
-			push bx											;save bx
-			shl bl, 3										;bl *= 8
-			pop dx											;return bx to dx
-			add bl, dl										;bl += dl
-			inc bl											;bl += 1
-			add bp, bx										;bp += bx
-			mov si, bp										;si = bp
-
-			ret												;return function value
-			endp											;proc's ending
-
-			own_style:
-			call SkipSpaces									;skip spaces on si
-
-			ret												;return function value
-			endp											;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; Skip quotation mark on si address
-; Entry:		SI - symbol on or before quotation mark
-; Exit:			SI - first symbol equal to quotation mark
-; Destroyed:	CX, AL
-;------------------------------------------------------------------------------
-
-SkipQuot	proc
-
-			mov cx, 1										;cx = 1
-
-			cmd_skip_quot:									;<----------------------------------|
-				lodsb										;mov al, ds:[si]					|
-				cmp al, '"'									;if (al == ' ') zf = 1				|
-				je end_cmd_skip_quot						;if (zf == 1) goto end_cmd_skip_quot|
-				add cx, 2									;cx += 2							|
-			loop cmd_skip_quot								;-----------------------------------|
-			end_cmd_skip_quot:
+			mov si, offset DoubleFrameString				;si = &style string
 
 			ret												;return function value
 			endp											;proc's ending
@@ -105,52 +134,29 @@ SkipQuot	proc
 
 DrawString	proc
 
-			mov bp, offset str_data_pos						;bp = &str_data_pos
-			mov si, [bp]									;si = str_data_pos
-			xor cx, cx										;cx = 0
-			call StrLen										;cx = len(si)
-
-			mov bp, offset str_data_pos
-			mov si, [bp]									;si = &inside frame string
-			call EvalShift									;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2
-
-			mov ah, frame_color								;ah = string color
-			call PrintInsideString
-
-			ret												;return function value
-			endp											;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; Enter the data for frame
-; Entry:		None
-; Exit:			None
-; Destroyed:	SI, BP
-;------------------------------------------------------------------------------
-
-EnterData	proc
-
-			mov si, cmd_line_add							;si = cmd_line
-			call SkipSpaces									;skip spaces in cmd line
-			call Atoi										;bl = integer
-			mov bp, offset len								;bp = &len
-			mov [bp], bl									;len = bl
-
-			call SkipSpaces									;skip spaces in cmd line
-			call Atoi										;bl = integer
-			mov bp, offset height							;bp = &height
-			mov [bp], bl									;height = bl
-
-			call SkipSpaces									;skip spaces in cmd line
-			call Atoh										;bl = hex
-			mov bp, offset frame_color						;bp = &height
-			mov [bp], bl									;frame_color = bl
-
-			call SkipSpaces									;skip spaces in cmd line
-			call Atoi										;bl = integer
-			mov bp, offset frame_style						;bp = &style
-			mov [bp], bl									;frame_style = bl
+			mov cx, reg_in_frame 							;cx = amount of registers
+			reg_str:										;<--------------------------------------------------------------|
+				push cx										;save cx														|
+				mov bp, offset str_data_pos					;bp = &str_data_pos												|
+				mov si, [bp]								;si = str_data_pos												|
+				xor cx, cx									;cx = 0															|
+				call StrLen									;cx = len(si)													|
+				push cx										;save len														|
+															;																|
+				mov bp, offset str_data_pos					;bp = &str_data_pos												|
+				mov si, [bp]								;si = &inside frame string										|
+				call EvalShift								;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2	|
+															;																|
+				mov ah, frame_color							;ah = string color												|
+				call PrintInsideString						;print string													|
+															;																|
+				pop cx										;return len														|
+				mov bp, offset str_data_pos					;bp = &str_data_pos												|
+				inc cx										;cx += 1														|
+				add [bp], cx								;str_data_pos = len + 1											|
+				add y_string, 1								;y_string += 1													|
+				pop cx										;return loop counter											|
+			loop reg_str									;---------------------------------------------------------------|
 
 			ret												;return function value
 			endp											;proc's ending
@@ -235,30 +241,6 @@ Atoi	proc
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
-; Skip spaces on cmd line address
-; Entry:		SI - string beginning with ' '(20) space
-; Exit:			SI - first non space symbol
-; Destroyed:	CX, AL
-;------------------------------------------------------------------------------
-
-SkipSpaces	proc
-
-			mov cx, 1										;cx = 1
-
-			cmd_skip_spc:									;<----------------------------------|
-				lodsb										;mov al, ds:[si]					|
-				cmp al, ' '									;if (al == ' ') zf = 1				|
-				jne end_cmd_skip_spc						;if (zf == 1) goto end_cmd_skip_spc	|
-				add cx, 2									;cx += 2							|
-			loop cmd_skip_spc								;-----------------------------------|
-			end_cmd_skip_spc:
-
-			ret												;return function value
-			endp											;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
 ; Calculate values of variables: x_start, y_start, y_string
 ; Entry:		None
 ; Exit:			None
@@ -267,21 +249,17 @@ SkipSpaces	proc
 
 CalcParam	proc
 
+			;x_start = window_len - len
 			mov al, len										;al = len
-			mov dl, height									;dl = height
-			mov bl, window_len / 2							;bp = 80 / 2
-			mov x_start, bl									;x_start = 40
-			shr ax, 1										;ax /= 2
-			sub x_start, al									;x_start -= len / 2
+			mov bl, window_len								;bp = 80
+			mov x_start, bl									;x_start = 80
+			sub x_start, al									;x_start -= len
 
-			mov bl, window_height / 2						;bp = 25 / 2
-			mov y_start, bl									;y_start = 25 / 2
-			shr dx, 1										;dx /= 2
-			sub y_start, dl									;y_start -= height / 2
+			mov y_start, 2									;y_start = 1
 
 			mov bl, y_start									;bp = y_start
-			mov y_string, bl								;y_string = height / 2
-			add y_string, dl								;y_string += height / 2
+			inc bl											;bl += 1
+			mov y_string, bl								;y_string = y_start + 1
 
 			ret												;return function value
 			endp											;proc's ending
@@ -304,7 +282,7 @@ EvalShift	proc
 			mov bp, window_len								;bp = 80
 			push dx											;save size of frame in stack
 			mul bp											;ax = 2 * y_start * 80
-			pop dx											;return size of frame from stack to dx�
+			pop dx											;return size of frame from stack to dx≈
 			mov di, ax										;di = ax
 
 			xor ah, ah										;ah = 0
@@ -453,24 +431,21 @@ PrintString	proc
 
 ;------------------------------------------------------------------------------
 
-len 				db 0									;frame row length
-height 				db 0									;frame column height
-frame_color 		db 0									;frame element color
+.data
+len 				db 19									;frame row length
+height 				db 7									;frame column height
+frame_color 		db 4eh									;frame element color
 
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
 str_data_pos 		db 0									;cmd line position of string
 
-frame_style 		db 1									;frame style
-DoubleFrameString 	db '�ͻ� ��ͼ'
-SingleFrameString	db '�Ŀ� ����'
-HeartFrameString	db ' '
-DebugFrameString	db '123456789'
-MathFrameString		db '���� ����'
-PatriotFrameString	db 'RTRT TRTR'
-PointedFrameString	db '���� ����'
-OutsideFrameString	db '��ٴ ÿ��'
-InsideString 		db "Saint Valentine's Day!$"
+DoubleFrameString 	db '�ͻ� ��ͼ'
+AXString 			db "ax 0000$"
+BXString 			db "bx 0000$"
+CXString 			db "cx 0000$"
+DXString 			db "dx 0000$"
 
+EOP:
 end 	Start												;prog's ending

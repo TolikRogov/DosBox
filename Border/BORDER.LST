@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 1
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 1
 border.asm
 
 
@@ -49,7 +49,7 @@ border.asm
      44
      45	011F  B8 3100				     mov ax, 3100h								    +
      46				     ;make program resident
-     47	0122  BA 0067r				     mov dx, offset EOP								    +
+     47	0122  BA 0054r				     mov dx, offset EOP								    +
      48				     ;dx = &EOP
      49	0125  D1 EA D1 EA D1 EA	D1+		     shr dx, 4									    +
      50	      EA		     ;dx /= 4
@@ -60,7 +60,7 @@ border.asm
      55
      56				     ;------------------------------------------------------------------------------
      57				     ; New procedural handler of 09h interrupt
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 2
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 2
 border.asm
 
 
@@ -122,7 +122,7 @@ border.asm
     112				     ;jump to old procedural handler of	09h interrupt
     113	016C  0000		     old09ofs	     dw	0									    +
     114				     ;previous offset
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 3
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 3
 border.asm
 
 
@@ -184,7 +184,7 @@ border.asm
     169				     ;------------------------------------------------------------------------------
     170
     171				     ;------------------------------------------------------------------------------
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 4
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 4
 border.asm
 
 
@@ -246,7 +246,7 @@ border.asm
     226				     ;skip spaces
     227	01C8  E8 000E					     call SkipQuot							    +
     228				     ;skip while ne quot
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 5
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 5
 border.asm
 
 
@@ -308,7 +308,7 @@ border.asm
     283				     ; Exit:		     None
     284				     ; Destroyed:    SI, BP, CX, AH
     285				     ;------------------------------------------------------------------------------
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 6
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 6
 border.asm
 
 
@@ -370,7 +370,7 @@ border.asm
     340				     ;height = bl
     341
     342	021B  E8 0066					     call SkipSpaces							    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 7
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 7
 border.asm
 
 
@@ -432,7 +432,7 @@ border.asm
     397	0249  3C 41					     cmp al, 'A'							    +
     398				     ;if (al - 65 < 0) fs = 1	     |
     399	024B  79 06					     jns no_sign							    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 8
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 8
 border.asm
 
 
@@ -494,7 +494,7 @@ border.asm
     454																    +
     455				     ;							     |
     456	026C  53					     push bx								    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 9
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 9
 border.asm
 
 
@@ -556,7 +556,7 @@ border.asm
     511	028C  83 C1 02						     add cx, 2							    +
     512				     ;cx += 2							     |
     513	028F  E2 F6					     loop cmd_skip_spc							    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 10
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 10
 border.asm
 
 
@@ -618,7 +618,7 @@ border.asm
     568
     569				     ;------------------------------------------------------------------------------
     570				     ; Eval shift of frame inside string
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 11
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 11
 border.asm
 
 
@@ -680,7 +680,7 @@ border.asm
     625				     ;proc's ending
     626
     627				     ;------------------------------------------------------------------------------
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 12
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 12
 border.asm
 
 
@@ -742,7 +742,7 @@ border.asm
     682	02FC  E2 F8							     loop print_string					    +
     683				     ;-----------------------------------|
     684	02FE								     end_print_string:					    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 13
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 13
 border.asm
 
 
@@ -804,7 +804,7 @@ border.asm
     739				     ;di += window_len * 2	     |
     740	0324  E8 0010						     call PrintString						    +
     741				     ;print string			     |
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 14
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 14
 border.asm
 
 
@@ -866,7 +866,7 @@ border.asm
     796				     ;return prev loop cnt
     797
     798	034A  AC					     lodsb								    +
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 15
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 15
 border.asm
 
 
@@ -892,9 +892,9 @@ border.asm
     817				     ;------------------------------------------------------------------------------
     818
     819	0355			     .data
-    820	0000  46		     len			     db	70							    +
+    820	0000  14		     len			     db	20							    +
     821				     ;frame row	length
-    822	0001  0D		     height			     db	13							    +
+    822	0001  07		     height			     db	7							    +
     823				     ;frame column height
     824	0002  4E		     frame_color	     db	4eh								    +
     825				     ;frame element color
@@ -903,7 +903,7 @@ border.asm
     828				     ;x	frame start position
     829	0004  00		     y_start			     db	0							    +
     830				     ;y	frame start position
-    831	0005  05		     y_string			     db	5							    +
+    831	0005  00		     y_string			     db	0							    +
     832				     ;y	string start position
     833	0006  00		     str_data_pos	     db	0								    +
     834				     ;cmd line position	of string
@@ -926,20 +926,17 @@ border.asm
     851	      B1 B2
     852	0047  C0 C1 D9 B4 20 C3	BF+  OutsideFrameString	     db	'ÀÁÙ´ Ã¿ÂÚ'
     853	      C2 DA
-    854	0050  53 61 69 6E 74 20	56+  InsideString	     db	"Saint Valentine's Day!$"
-    855	      61 6C 65 6E 74 69	6E+
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 16
+    854	0050  61 78 20 24	     InsideString	     db	"ax $"
+    855
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 16
 border.asm
 
 
 
-    856	      65 27 73 20 44 61	79+
-    857	      21 24
-    858
-    859	0067			     EOP:
-    860				     end     Start										    +
-    861				     ;prog's ending
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 17
+    856	0054			     EOP:
+    857				     end     Start										    +
+    858				     ;prog's ending
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 17
 Symbol Table
 
 
@@ -949,7 +946,7 @@ Symbol Name			  Type	 Value
 
 ??DATE				  Text	 "02/24/25"
 ??FILENAME			  Text	 "border  "
-??TIME				  Text	 "00:43:27"
+??TIME				  Text	 "01:02:53"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @CODE				  Text	 DGROUP
@@ -983,7 +980,7 @@ END_CMD_SKIP_SPC		  Near	 DGROUP:0291
 END_PRINT_STRING		  Near	 DGROUP:02FE
 END_STR_LEN			  Near	 DGROUP:02F5
 ENTERDATA			  Near	 DGROUP:0203
-EOP				  Near	 DGROUP:0067
+EOP				  Near	 DGROUP:0054
 EVALSHIFT			  Near	 DGROUP:02BE
 FRAME_COLOR			  Byte	 DGROUP:0002
 FRAME_STYLE			  Byte	 DGROUP:0007
@@ -1001,7 +998,7 @@ OLD09OFS			  Word	 DGROUP:016C
 OLD09SEG			  Word	 DGROUP:016E
 OUTSIDEFRAMESTRING		  Byte	 DGROUP:0047
 OWN_STYLE			  Near	 DGROUP:01C4
-Turbo Assembler	 Version 4.1	    02/24/25 00:43:27	    Page 18
+Turbo Assembler	 Version 4.1	    02/24/25 01:02:53	    Page 18
 Symbol Table
 
 
@@ -1030,6 +1027,6 @@ Y_STRING			  Byte	 DGROUP:0005
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
-  _DATA				  16  0067 Word	  Public  DATA
+  _DATA				  16  0054 Word	  Public  DATA
   _TEXT				  16  0355 Word	  Public  CODE
 
