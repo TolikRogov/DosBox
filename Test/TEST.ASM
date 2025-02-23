@@ -1,21 +1,57 @@
-;-----------------------------------------------------------------------------
-;		It is one of the most terrible thing in the world.
-;			@Rogov Anatoliy 04.02.2025 19:39:..
-;-----------------------------------------------------------------------------
-.model tiny						;Set the model with one memory segment
-								;less then 64 Kb
-.code							;Start the block of programm code
-org 100h						;Move code block to 100h address
-Start:							;Begining label of code
-		mov ah, 09h				;ah = puts(String)
-		mov dx, offset String	;dx = &String
-		int 21h					;system call manager
+video_segment 	= 	0b800h
 
-		mov ax, 4c00h			;ax = exit(0)
-		int 21h 				;system call manager
+.model tiny
+.code
+org 100h
+Start:
+		xor ax, ax
+		mov es, ax
+		mov bx, 09h * 4
 
-ENDL		equ 0dh, 0ah		;define ENDL \r \n
+		mov ax, es:[bx]
+		mov old09ofs, ax
+		mov ax, es:[bx + 2]
+		mov old09seg, ax
 
-String db 'RTRTRTRTRTRTRTRTRTRTRTRTRTRTRTRT', ENDL, '$'
+		mov es:[bx], offset NewOS	;change 09h interrupt by mine
+		mov ax, cs					;ax = cs
+		mov es:[bx + 2], ax			;new segment
 
-end 		Start				;prog's ending
+		int 09h						;call procedural interrupt handler (поп)
+
+		mov ax, 3100h				;31 functions 21 interrupt
+		mov dx, offset EOP
+		shr dx, 4
+		inc dx
+		int 21h
+
+NewOS 	proc
+		push ax bx cx dx es si bp
+
+		mov ax, video_segment
+		mov es, ax
+		mov ah, 4eh
+
+		mov bx, 5 * 80 * 2 + 40 * 2
+
+		in al, 60h
+		mov es:[bx], ax
+
+		in al, 61h
+		mov ah, al
+		or al, 80h
+		out 61h, al						;ready for input next button
+		mov al, ah
+		out 61h, al
+
+		mov al, 20h						;non-specific end of interrupt
+		out 20h, al						;interrupt controller port
+
+		pop bp si es dx cx bx ax
+		 	db 0eah
+old09ofs 	dw 0
+old09seg 	dw 0
+		endp
+
+EOP:
+end 		Start

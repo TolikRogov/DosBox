@@ -1,13 +1,13 @@
 
  Start  Stop   Length Name               Class
 
- 00000H 0012EH 0012FH _TEXT              CODE
- 00130H 00130H 00000H _DATA              DATA
+ 00000H 00163H 00164H _TEXT              CODE
+ 00164H 00164H 00000H _DATA              DATA
 
 
 Detailed map of segments
 
- 0000:0000 012F C=CODE   S=_TEXT          G=DGROUP  M=TEST.ASM   ACBP=48
- 0000:0130 0000 C=DATA   S=_DATA          G=DGROUP  M=TEST.ASM   ACBP=48
+ 0000:0000 0164 C=CODE   S=_TEXT          G=DGROUP  M=TEST.ASM   ACBP=48
+ 0000:0164 0000 C=DATA   S=_DATA          G=DGROUP  M=TEST.ASM   ACBP=48
 
 
