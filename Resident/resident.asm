@@ -156,6 +156,36 @@ DrawString	proc
 				add [bp], cx								;str_data_pos = len + 1											|
 				add y_string, 1								;y_string += 1													|
 				pop cx										;return loop counter											|
+
+				sub di, 2 * 4
+				push ax bx
+				mov bx, ax
+				shr bx, 16
+				mov ax, bx
+				stosw
+				pop bx ax
+
+				push ax bx
+				mov bx, ax
+				shr bx, 12
+				mov ax, bx
+				stosw
+				pop bx ax
+
+				push ax bx
+				mov bx, ax
+				shr bx, 8
+				mov ax, bx
+				stosw
+				pop bx ax
+
+				push ax bx
+				mov bx, ax
+				shr bx, 4
+				mov ax, bx
+				stosw
+				pop bx ax
+
 			loop reg_str									;---------------------------------------------------------------|
 
 			ret												;return function value
