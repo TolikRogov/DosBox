@@ -142,54 +142,74 @@ DrawString	proc
 				xor cx, cx									;cx = 0															|
 				call StrLen									;cx = len(si)													|
 				push cx										;save len														|
-															;																|
+															;						Shifting								|
 				mov bp, offset str_data_pos					;bp = &str_data_pos												|
 				mov si, [bp]								;si = &inside frame string										|
 				call EvalShift								;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2	|
-															;																|
+															;						Print									|
 				mov ah, frame_color							;ah = string color												|
 				call PrintInsideString						;print string													|
-															;																|
+															;						Next Row								|
 				pop cx										;return len														|
 				mov bp, offset str_data_pos					;bp = &str_data_pos												|
 				inc cx										;cx += 1														|
 				add [bp], cx								;str_data_pos = len + 1											|
 				add y_string, 1								;y_string += 1													|
 				pop cx										;return loop counter											|
-
+															;						Out Register
 				sub di, 2 * 4
-				push ax bx
-				mov bx, ax
-				shr bx, 16
-				mov ax, bx
-				stosw
-				pop bx ax
-
-				push ax bx
-				mov bx, ax
-				shr bx, 12
-				mov ax, bx
-				stosw
-				pop bx ax
-
-				push ax bx
-				mov bx, ax
-				shr bx, 8
-				mov ax, bx
-				stosw
-				pop bx ax
-
-				push ax bx
-				mov bx, ax
-				shr bx, 4
-				mov ax, bx
-				stosw
-				pop bx ax
+				push ax bx cx dx
+				mov bp, offset print_ax
+				sub bp, reg_in_frame
+				add bp, cx
+				push ax
+				mov al, [bp]
+				mov CurReg, al
+				pop ax
+				CurReg db 0
+				call OutAx
+				pop ax bx cx dx
 
 			loop reg_str									;---------------------------------------------------------------|
 
 			ret												;return function value
 			endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Show ax register value
+; Entry:		AX - printing value
+; Exit:			NONE
+; Destroyed:	CX, BX, DX, AX
+;------------------------------------------------------------------------------
+
+OutAx	proc
+
+		mov cl, 16
+
+		division:
+			div cl
+			cmp ah, 10
+			jae letter
+
+				add ah, '0'
+				jmp both_print_reg
+			letter:
+				add ah, 'A' - 10
+
+			both_print_reg:
+			mov ch, al
+			xchg ah, al
+			mov	ah, frame_color
+			stosw
+			mov al, ch
+			xor ah, ah
+			cmp al, 0
+			jne division
+
+		ret													;return function value
+		endp												;proc's ending
 
 ;------------------------------------------------------------------------------
 
@@ -472,10 +492,16 @@ y_string 			db 0									;y string start position
 str_data_pos 		db 0									;cmd line position of string
 
 DoubleFrameString 	db '…Õª∫ ∫»Õº'
+
 AXString 			db "ax 0000$"
 BXString 			db "bx 0000$"
 CXString 			db "cx 0000$"
 DXString 			db "dx 0000$"
+
+print_ax			db 090h
+print_bx			db 093h
+print_cx			db 091h
+print_dx			db 092h
 
 EOP:
 end 	Start												;prog's ending
