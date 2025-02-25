@@ -384,6 +384,8 @@ PrintInsideString	proc
 
 DrawFrame	proc
 
+			push bx cx di
+
 			mov al, y_start									;al = y_start
 			shl al, 1										;al *= 2
 			mov bp, window_len								;bp = 80
@@ -409,6 +411,8 @@ DrawFrame	proc
 
 			add di, window_len * 2							;di += window_len * 2 (next line)
 			call PrintString								;print string
+
+			pop di cx bx
 
 			ret												;return function value
 			endp											;proc's ending
