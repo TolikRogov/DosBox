@@ -12,6 +12,7 @@ window_height 		= 25								;window column height
 org 100h												;prog's beginning ram block
 
 Start:
+	;==============================================================================================
 	xor ax, ax											;ax = 0
 	mov es, ax											;es = 0
 	mov bx, 0009h * 4									;bx = &int 09h
@@ -27,12 +28,57 @@ Start:
 	pop ax												;ax = cs
 	mov es:[bx + 2], ax									;current segment
 	sti													;set interrupt flag
+	;==============================================================================================
+	xor ax, ax											;ax = 0
+	mov es, ax											;es = 0
+	mov bx, 0008h * 4									;bx = &int 08h
+
+	mov ax, es:[bx]										;ax = old09h offset
+	mov old08ofs, ax									;old09fs = ax
+	mov ax, es:[bx + 2]									;ax = old09h segment
+	mov old08seg, ax									;old09seg = ax
+
+	cli													;clear interrupt flag
+	mov es:[bx], offset New08h							;change 09h interrupt function by mine
+	push cs												;save current code segment
+	pop ax												;ax = cs
+	mov es:[bx + 2], ax									;current segment
+	sti													;set interrupt flag
 
 	mov ax, 3100h										;make program resident
 	mov dx, offset EOP									;dx = &EOP
 	shr dx, 4											;dx /= 4
 	inc dx												;dx += 1
 	int 21h												;31 function of 21 interrupt
+
+;------------------------------------------------------------------------------
+; New procedural handler of 08h interrupt - timer
+; Entry: 		None
+; Exit: 		None
+; Destroyed:	None
+;------------------------------------------------------------------------------
+
+New08h 	proc
+
+	push ax bx cx dx si di ds es bp						;save all registers
+	push cs												;cs in stack
+	pop ds												;ds = cs
+
+	cmp Active, 1										;if (Active == 1) zf = 1
+	jne skip_activision									;if (zf != 1) goto skip_activision--|
+		call MainBorder									;Main Border function				|
+		jmp old_08h										;goto old_08h ----------------------|---|
+		skip_activision:								;<----------------------------------|	|
+														;										|
+	old_08h:											;<--------------------------------------|
+	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
+	db 0eah												;jump to old procedural handler of 09h interrupt
+	old08ofs dw 0000h									;previous offset
+	old08seg dw 0000h									;in that segment
+
+	endp
+
+;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
 ; New procedural handler of 09h interrupt
