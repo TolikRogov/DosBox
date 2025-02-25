@@ -1,13 +1,11 @@
 ;------------------------------------------------------------------------------
-;			 Card for Saint Valentine's Day (aka frame)
-;			@Rogov Anatoliy 08.02.2025 "Sivchuk Bad Day"
+;				It is impossible to debug! SO...SI...DI...SS
+;			@Rogov Anatoliy 25.02.2025 "When will I delete DOSBox?"
 ;------------------------------------------------------------------------------
 
-cmd_line_add		= 0081h									;cmd line address
 video_segment 		= 0b800h								;video segment
 window_len 			= 80									;window row length
 window_height 		= 25									;window column height
-reg_in_frame		= 4										;amount of registers in frame
 
 .model tiny													;set 64 Kb model
 .code														;define code block
@@ -22,9 +20,13 @@ Start:	xor ax, ax											;ax = 0
 		mov ax, es:[bx + 2]									;ax = old09h segment
 		mov old09seg, ax									;old09seg = ax
 
+		cli													;clear interrupt flag
+
 		mov es:[bx], offset New09h							;change 09h interrupt function by mine
 		mov ax, cs											;ax = cs
 		mov es:[bx + 2], ax									;current segment
+
+		sti													;set interrupt flag
 
 		mov ax, 3100h										;make program resident
 		mov dx, offset EOP									;dx = &EOP
@@ -34,24 +36,20 @@ Start:	xor ax, ax											;ax = 0
 
 ;------------------------------------------------------------------------------
 ; New procedural handler of 09h interrupt
-; Entry: 		NONE
-; Exit: 		NONE
-; Destroyed:	NONE
+; Entry: 		None
+; Exit: 		None
+; Destroyed:	None
 ;------------------------------------------------------------------------------
 
 New09h 	proc
-		push ax bx cx dx es si bp							;save all registers
+		push ax bx cx dx si di ds es						;save all registers
+		push cs												;cs in stack
+		pop ds												;ds = cs
 
 		in al, 60h											;al = scan code from 60h port
 		cmp al, 58h											;if (al == F12) zf = 1
 		jne skip											;if (zf != 1) goto skip --------|
-			push ax bx cx dx es si bp ds					;save all registers				|
-															;								|
-			mov bx, cs										;bx = code segment				|
-			mov ds, bx										;data segment = code segment	|
 			call MainBorder									;Main Border function			|
-															;								|
-			pop ds bp si es dx cx bx ax						;return all registers			|
 		skip:												;<------------------------------|
 
 		;say that ready to input new button by blink the bit
@@ -65,33 +63,30 @@ New09h 	proc
 		mov al, 20h											;non-specific end of interrupt
 		out 20h, al											;interrupt controller port
 
-		pop bp si es dx cx bx ax							;return all registers after interrupt
+		pop es ds di si dx cx bx ax							;return all registers after interrupt
 		 	db 0eah											;jump to old procedural handler of 09h interrupt
 old09ofs 	dw 0											;previous offset
-old09seg 	dw 0											;in segment
+old09seg 	dw 0											;in that segment
 		endp
 
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
-; Main Border
+; Main program to view frame
 ; Entry:		None
-; Exit:			SI
-; Destroyed:	SI, BP, BX, DX
+; Exit:			None
+; Destroyed:	AX, CX, BX, ES, DX, DI
 ;------------------------------------------------------------------------------
 
 MainBorder	proc
 
 			xor ax, ax										;ax = 0
-			xor bx, bx										;bx = 0
 			xor cx, cx										;cx = 0
-			xor dx, dx										;dx = 0
 
 			mov bx, video_segment							;bx = video segment position
 			mov es, bx										;es = bx
 
 			call CalcParam									;x_start, y_start, y_string
-			call SetStyle									;calculate si
 
 			mov dh, height									;dh = height
 			mov dl, len										;dl = len
@@ -105,20 +100,93 @@ MainBorder	proc
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
-; Set frame style
-; Entry:		None
-; Exit:			SI
-; Destroyed:	SI, BP, BX, DX
+; Convert hex to ascii code
+; Entry:		AL - converted symbol
+; Exit:			AL - result of converting
+; Destroyed:	AL
 ;------------------------------------------------------------------------------
 
-SetStyle	proc
+htoa	proc
 
-			xor dx, dx										;dx = 0
-			mov dx, offset AXString							;dx = &AXString
-			mov bp, offset str_data_pos						;bp = &str_data_pos
-			mov [bp], dx									;str_data_pos = AXString
+		cmp al, 10											;if (al - 10 < 0) zs = 1
+		jae letter											;if (zs == 0) goto letter --|
+ 		jb digit											;if (zs == 1) goto digit ---|-|
+															;							| |
+		letter:												;<--------------------------| |
+			add al, 'A' - 10								;al += 'A' - 10				  |
+			jmp ending										;-----------------------------|-|
+		digit:												;<----------------------------|	|
+			add al, '0'										;al += '0'						|
+			jmp ending										;-------------------------------|
+															;							 	|
+		ending:												;<------------------------------|
+		ret													;return function value
+		endp												;proc's ending
 
-			mov si, offset DoubleFrameString				;si = &style string
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Print register value
+; Entry:		BX - right offset on register in stack segment
+; Exit:			None
+; Destroyed:	AL
+;------------------------------------------------------------------------------
+
+RegVal	proc
+
+		push cx												;save cx - amount of symbols in register name
+		push bx												;save bx - right offset of register in stack segment
+		mov cx, 0002h										;cx = 0002h
+
+		half:												;
+			sub bx, cx
+			add bx, 2
+
+			mov al, ss:[bx]
+			shr al, 4
+			call htoa
+			stosw
+
+			mov al, ss:[bx]
+			and al, 0fh
+			call htoa
+			stosw
+		loop half
+
+		pop bx
+		pop cx
+
+		ret												;return function value
+		endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Print information about one register
+; Entry:		SI - address of string to current register name
+;				DI - place on the screen where will be register value
+; Exit:			None
+; Destroyed:	DI, SI, AL
+;------------------------------------------------------------------------------
+
+OneRegister	proc
+
+			push di
+			push cx
+
+			mov cx, 0003h
+
+			register_name:
+				lodsb
+				stosw
+			loop register_name
+			inc si
+
+			call RegVal
+
+			pop cx
+			pop di
+			add di, 0002h * window_len
 
 			ret												;return function value
 			endp											;proc's ending
@@ -126,167 +194,34 @@ SetStyle	proc
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
-; Draw string inside the frame
-; Entry:		None
+; Draw registers inside the frame
+; Entry:		SI - first register name string address
 ; Exit:			None
-; Destroyed:	SI, BP, CX, AH
+; Destroyed:	CX, AX, BX
 ;------------------------------------------------------------------------------
 
 DrawString	proc
 
-			mov cx, reg_in_frame 							;cx = amount of registers
-			reg_str:										;<--------------------------------------------------------------|
-				push cx										;save cx														|
-				mov bp, offset str_data_pos					;bp = &str_data_pos												|
-				mov si, [bp]								;si = str_data_pos												|
-				xor cx, cx									;cx = 0															|
-				call StrLen									;cx = len(si)													|
-				push cx										;save len														|
-															;						Shifting								|
-				mov bp, offset str_data_pos					;bp = &str_data_pos												|
-				mov si, [bp]								;si = &inside frame string										|
-				call EvalShift								;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2	|
-															;						Print									|
-				mov ah, frame_color							;ah = string color												|
-				call PrintInsideString						;print string													|
-															;						Next Row								|
-				pop cx										;return len														|
-				mov bp, offset str_data_pos					;bp = &str_data_pos												|
-				inc cx										;cx += 1														|
-				add [bp], cx								;str_data_pos = len + 1											|
-				add y_string, 1								;y_string += 1													|
-				pop cx										;return loop counter											|
-															;						Out Register
-				sub di, 2 * 4
-				push ax bx cx dx
-				mov bp, offset print_ax
-				sub bp, reg_in_frame
-				add bp, cx
-				push ax
-				mov al, [bp]
-				mov CurReg, al
-				pop ax
-				CurReg db 0
-				call OutAx
-				pop ax bx cx dx
+			mov cx, 0007h
+			call EvalShift
+			mov cx, reg_in_frame
+			mov ah, 4eh
 
-			loop reg_str									;---------------------------------------------------------------|
+			push ax
+			mov bx, sp
+			xor ax, ax
+			mov ax, reg_in_frame
+			shl ax, 1
+			add bx, ax										;????????? ?? ax ? ?????
+			pop ax
+
+			all_registers:
+				call OneRegister
+				sub bx, 0002h
+			loop all_registers
 
 			ret												;return function value
 			endp											;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; Show ax register value
-; Entry:		AX - printing value
-; Exit:			NONE
-; Destroyed:	CX, BX, DX, AX
-;------------------------------------------------------------------------------
-
-OutAx	proc
-
-		mov cl, 16
-
-		division:
-			div cl
-			cmp ah, 10
-			jae letter
-
-				add ah, '0'
-				jmp both_print_reg
-			letter:
-				add ah, 'A' - 10
-
-			both_print_reg:
-			mov ch, al
-			xchg ah, al
-			mov	ah, frame_color
-			stosw
-			mov al, ch
-			xor ah, ah
-			cmp al, 0
-			jne division
-
-		ret													;return function value
-		endp												;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; ASCII code symbols to hex integer (ABCDEF instead of abcdef)
-; Entry:		AL - first symbol
-; Exit:			BL - hex
-; Destroyed:	CX, BX, DX, AX
-;------------------------------------------------------------------------------
-
-Atoh	proc
-
-		mov cx, 1											;cx = 1
-		xor bx, bx											;bx = 0
-		xor dx, dx											;dx = 0
-		xor ah, ah											;ah = 0
-
-		get_hex:											;<--------------------------|
-			cmp al, ' '										;if (al == ' ') zf = 1		|
-			je end_atoh										;if (zf == 1) goto end_atoi	|
-															;							|
-			shl bx, 4										;bx *= 16					|
-															;							|
-			cmp al, 'A'										;if (al - 65 < 0) fs = 1	|
-			jns no_sign										;if (fs != 1) goto no_sign	|
-			sub ax, '0'										;ax -= 48					|
-			jmp both										;goto both					|
-			no_sign:										;							|
-				sub ax, 55									;ax -= 55					|
-			both:											;							|
-			add bx, ax										;bx += ax					|
-															;							|
-			add cx, 2										;cx += 2					|
-			lodsb											;mov al, ds:[si]			|
-		loop get_hex										;---------------------------|
-		end_atoh:
-
-		ret													;return function value
-		endp												;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; ASCII code symbols to integer
-; Entry:		AL - first symbol
-; Exit:			BL - integer
-; Destroyed:	CX, BX, DX, AX
-;------------------------------------------------------------------------------
-
-Atoi	proc
-
-		mov cx, 1											;cx = 1
-		xor bx, bx											;bx = 0
-		xor dx, dx											;dx = 0
-		xor ah, ah											;ah = 0
-
-		get_symbol:											;<--------------------------|
-			cmp al, ' '										;if (al == ' ') zf = 1		|
-			je end_atoi										;if (zf == 1) goto end_atoi	|
-															;							|
-			push bx											;save bx					|
-			shl bx, 3										;bx *= 8					|
-															;							|
-			pop dx											;return bx: dx = bx			|
-			shl dx, 1										;dx *= 2					|
-			add bx, dx										;bx += dx					|
-															;							|
-			sub ax, 48										;ax -= 48					|
-			add bx, ax										;bx += ax					|
-															;							|
-			add cx, 2										;cx += 2					|
-			lodsb											;mov al, ds:[si]			|
-		loop get_symbol										;---------------------------|
-		end_atoi:
-
-		ret													;return function value
-		endp												;proc's ending
 
 ;------------------------------------------------------------------------------
 
@@ -299,17 +234,23 @@ Atoi	proc
 
 CalcParam	proc
 
-			;x_start = window_len - len
 			mov al, len										;al = len
-			mov bl, window_len								;bp = 80
-			mov x_start, bl									;x_start = 80
-			sub x_start, al									;x_start -= len
+			mov dl, height									;dl = height
+			mov bl, window_len / 2							;bp = 80 / 2
+			mov x_start, bl									;x_start = 40
+			shr ax, 1										;ax /= 2
+			sub x_start, al									;x_start -= len / 2
 
-			mov y_start, 2									;y_start = 1
+			mov bl, window_height / 2						;bp = 25 / 2
+			mov y_start, bl									;y_start = 25 / 2
+			shr dx, 1										;dx /= 2
+			sub y_start, dl									;y_start -= height / 2
 
 			mov bl, y_start									;bp = y_start
 			inc bl											;bl += 1
 			mov y_string, bl								;y_string = y_start + 1
+
+			mov si, offset DoubleFrameString				;si = &style string
 
 			ret												;return function value
 			endp											;proc's ending
@@ -354,7 +295,6 @@ EvalShift	proc
 
 ;------------------------------------------------------------------------------
 
-
 ;------------------------------------------------------------------------------
 ; Eval string length with '$' terminal symbol
 ; Entry: 		SI = data string address
@@ -374,30 +314,6 @@ StrLen	proc
 
 		ret													;return function value
 		endp												;proc's ending
-
-;------------------------------------------------------------------------------
-
-;------------------------------------------------------------------------------
-; Print string inside the frame
-; Entry: 		BX = data string address
-;				AH = string color
-;				CX = string length
-; Exit:			None
-; Destroyed:	BX, AL, DI
-;------------------------------------------------------------------------------
-
-PrintInsideString	proc
-
-					print_string:							;<----------------------------------|
-						lodsb								;mov al, ds:[si]					|
-						stosw								;mov es:[di], ax / add di, 2		|
-						cmp al, '$'							;if (al == '$') zf = 1				|
-						jz end_print_string					;if (zf == 1) goto end_print_string	|
-					loop print_string						;-----------------------------------|
-					end_print_string:						;label of print string ending
-
-					ret										;return function value
-					endp									;proc's ending
 
 ;------------------------------------------------------------------------------
 
@@ -481,27 +397,26 @@ PrintString	proc
 
 ;------------------------------------------------------------------------------
 
-.data
-len 				db 19									;frame row length
-height 				db 7									;frame column height
+len 				db 31									;frame row length
+height 				db 10									;frame column height
 frame_color 		db 4eh									;frame element color
 
 x_start 			db 0									;x frame start position
 y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
 str_data_pos 		db 0									;cmd line position of string
+reg_in_frame		equ 8									;amount of registers in frame
 
 DoubleFrameString 	db 'ÉÍ»º ºÈÍ¼'
 
-AXString 			db "ax 0000$"
-BXString 			db "bx 0000$"
-CXString 			db "cx 0000$"
-DXString 			db "dx 0000$"
-
-print_ax			db 090h
-print_bx			db 093h
-print_cx			db 091h
-print_dx			db 092h
+AXString 			db "ax $"
+BXString 			db "bx $"
+CXString 			db "cx $"
+DXString 			db "dx $"
+SIString 			db "si $"
+DIString 			db "di $"
+DSString 			db "ds $"
+ESString 			db "es $"
 
 EOP:
 end 	Start												;prog's ending

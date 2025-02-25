@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 1
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 1
 resident.asm
 
 
@@ -8,845 +8,641 @@ resident.asm
       3				     ;			     @Rogov Anatoliy 08.02.2025	"Sivchuk Bad Day"
       4				     ;------------------------------------------------------------------------------
       5
-      6	      =0081		     cmd_line_add	     = 0081h								    +
-      7				     ;cmd line address
-      8	      =B800		     video_segment	     = 0b800h								    +
-      9				     ;video segment
-     10	      =0050		     window_len			     = 80							    +
-     11				     ;window row length
-     12	      =0019		     window_height	     = 25								    +
-     13				     ;window column height
-     14	      =0004		     reg_in_frame	     = 4								    +
-     15				     ;amount of	registers in frame
-     16
-     17	0000			     .model tiny										    +
-     18				     ;set 64 Kb	model
-     19	0000			     .code											    +
-     20				     ;define code block
-     21				     org 100h											    +
-     22				     ;prog's beginning ram block
-     23
-     24	0100  33 C0		     Start:  xor ax, ax										    +
-     25				     ;ax = 0
-     26	0102  8E C0				     mov es, ax									    +
-     27				     ;es = 0
-     28	0104  BB 0024				     mov bx, 09h * 4								    +
-     29				     ;bx = &int	09h
-     30
-     31	0107  26: 8B 07				     mov ax, es:[bx]								    +
-     32				     ;ax = old09h offset
-     33	010A  A3 016Cr				     mov old09ofs, ax								    +
-     34				     ;old09fs =	ax
-     35	010D  26: 8B 47	02			     mov ax, es:[bx + 2]							    +
-     36				     ;ax = old09h segment
-     37	0111  A3 016Er				     mov old09seg, ax								    +
-     38				     ;old09seg = ax
-     39
-     40	0114  26: C7 07	0130r			     mov es:[bx], offset New09h							    +
-     41				     ;change 09h interrupt function by mine
-     42	0119  8C C8				     mov ax, cs									    +
-     43				     ;ax = cs
-     44	011B  26: 89 47	02			     mov es:[bx	+ 2], ax							    +
-     45				     ;current segment
-     46
-     47	011F  B8 3100				     mov ax, 3100h								    +
-     48				     ;make program resident
-     49	0122  BA 0034r				     mov dx, offset EOP								    +
-     50				     ;dx = &EOP
-     51	0125  D1 EA D1 EA D1 EA	D1+		     shr dx, 4									    +
-     52	      EA		     ;dx /= 4
-     53	012D  42				     inc dx									    +
-     54				     ;dx += 1
-     55	012E  CD 21				     int 21h									    +
-     56				     ;31 function of 21	interrupt
-     57
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 2
+      6	      =B800		     video_segment	     = 0b800h								    +
+      7				     ;video segment
+      8	      =0050		     window_len			     = 80							    +
+      9				     ;window row length
+     10	      =0019		     window_height	     = 25								    +
+     11				     ;window column height
+     12
+     13	0000			     .model tiny										    +
+     14				     ;set 64 Kb	model
+     15	0000			     .code											    +
+     16				     ;define code block
+     17				     org 100h											    +
+     18				     ;prog's beginning ram block
+     19
+     20	0100  33 C0		     Start:  xor ax, ax										    +
+     21				     ;ax = 0
+     22	0102  8E C0				     mov es, ax									    +
+     23				     ;es = 0
+     24	0104  BB 0024				     mov bx, 09h * 4								    +
+     25				     ;bx = &int	09h
+     26
+     27	0107  26: 8B 07				     mov ax, es:[bx]								    +
+     28				     ;ax = old09h offset
+     29	010A  A3 015Er				     mov old09ofs, ax								    +
+     30				     ;old09fs =	ax
+     31	010D  26: 8B 47	02			     mov ax, es:[bx + 2]							    +
+     32				     ;ax = old09h segment
+     33	0111  A3 0160r				     mov old09seg, ax								    +
+     34				     ;old09seg = ax
+     35
+     36	0114  FA				     cli									    +
+     37				     ;clear interrupt flag
+     38
+     39	0115  26: C7 07	0132r			     mov es:[bx], offset New09h							    +
+     40				     ;change 09h interrupt function by mine
+     41	011A  8C C8				     mov ax, cs									    +
+     42				     ;ax = cs
+     43	011C  26: 89 47	02			     mov es:[bx	+ 2], ax							    +
+     44				     ;current segment
+     45
+     46	0120  FB				     sti									    +
+     47				     ;set interrupt flag
+     48
+     49	0121  B8 3100				     mov ax, 3100h								    +
+     50				     ;make program resident
+     51	0124  BA 02D8r				     mov dx, offset EOP								    +
+     52				     ;dx = &EOP
+     53	0127  D1 EA D1 EA D1 EA	D1+		     shr dx, 4									    +
+     54	      EA		     ;dx /= 4
+     55	012F  42				     inc dx									    +
+     56				     ;dx += 1
+     57	0130  CD 21				     int 21h									    +
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 2
 resident.asm
 
 
 
-     58				     ;------------------------------------------------------------------------------
-     59				     ; New procedural handler of 09h interrupt
-     60				     ; Entry:		     NONE
-     61				     ; Exit:		     NONE
-     62				     ; Destroyed:    NONE
-     63				     ;------------------------------------------------------------------------------
-     64
-     65	0130			     New09h  proc
-     66	0130  50 53 51 52 06 56	55		     push ax bx	cx dx es si bp							    +
-     67				     ;save all registers
-     68
-     69	0137  E4 60				     in	al, 60h									    +
-     70				     ;al = scan	code from 60h port
-     71	0139  3C 58				     cmp al, 58h								    +
-     72				     ;if (al ==	F12) zf	= 1
-     73	013B  75 17				     jne skip									    +
-     74				     ;if (zf !=	1) goto	skip --------|
-     75	013D  50 53 51 52 06 56	55+			     push ax bx	cx dx es si bp ds				     ;save  +
-     76	      1E		     all registers			       |
-     77																    +
-     78				     ;								     |
-     79	0145  8C CB					     mov bx, cs								    +
-     80				     ;bx = code	segment				     |
-     81	0147  8E DB					     mov ds, bx								    +
-     82				     ;data segment = code segment    |
-     83	0149  E8 0024					     call MainBorder							    +
-     84				     ;Main Border function		     |
-     85																    +
-     86				     ;								     |
-     87	014C  1F 5D 5E 07 5A 59	5B+			     pop ds bp si es dx	cx bx ax					    +
-     88	      58		     ;return all registers		     |
-     89	0154					     skip:									    +
-     90				     ;<------------------------------|
-     91
-     92						     ;say that ready to	input new button by blink the bit
-     93	0154  E4 61				     in	al, 61h									    +
-     94				     ;al = value from 61h keyboard port
-     95	0156  8A E0				     mov ah, al									    +
-     96				     ;ah = al
-     97	0158  0C 80				     or	al, 80h									    +
-     98				     ;set the highest bit
-     99	015A  E6 61				     out 61h, al								    +
-    100				     ;out al to	61h keyboard port
-    101	015C  8A C4				     mov al, ah									    +
-    102				     ;al = ah
-    103	015E  E6 61				     out 61h, al								    +
-    104				     ;out al to	61h keyboard port
-    105
-    106	0160  B0 20				     mov al, 20h								    +
-    107				     ;non-specific end of interrupt
-    108	0162  E6 20				     out 20h, al								    +
-    109				     ;interrupt	controller port
-    110
-    111	0164  5D 5E 07 5A 59 5B	58		     pop bp si es dx cx	bx ax							    +
-    112				     ;return all registers after interrupt
-    113	016B  EA					     db	0eah								    +
-    114				     ;jump to old procedural handler of	09h interrupt
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 3
+     58				     ;31 function of 21	interrupt
+     59
+     60				     ;------------------------------------------------------------------------------
+     61				     ; New procedural handler of 09h interrupt
+     62				     ; Entry:		     None
+     63				     ; Exit:		     None
+     64				     ; Destroyed:    None
+     65				     ;------------------------------------------------------------------------------
+     66
+     67	0132			     New09h  proc
+     68	0132  50 53 51 52 56 57	1E+		     push ax bx	cx dx si di ds es					     ;save  +
+     69	      06		     all registers
+     70	013A  0E				     push cs									    +
+     71				     ;cs in stack
+     72	013B  1F				     pop ds									    +
+     73				     ;ds = cs
+     74
+     75	013C  E4 60				     in	al, 60h									    +
+     76				     ;al = scan	code from 60h port
+     77	013E  3C 58				     cmp al, 58h								    +
+     78				     ;if (al ==	F12) zf	= 1
+     79	0140  75 03				     jne skip									    +
+     80				     ;if (zf !=	1) goto	skip --------|
+     81	0142  E8 001D					     call MainBorder							    +
+     82				     ;Main Border function		     |
+     83	0145					     skip:									    +
+     84				     ;<------------------------------|
+     85
+     86						     ;say that ready to	input new button by blink the bit
+     87	0145  E4 61				     in	al, 61h									    +
+     88				     ;al = value from 61h keyboard port
+     89	0147  8A E0				     mov ah, al									    +
+     90				     ;ah = al
+     91	0149  0C 80				     or	al, 80h									    +
+     92				     ;set the highest bit
+     93	014B  E6 61				     out 61h, al								    +
+     94				     ;out al to	61h keyboard port
+     95	014D  8A C4				     mov al, ah									    +
+     96				     ;al = ah
+     97	014F  E6 61				     out 61h, al								    +
+     98				     ;out al to	61h keyboard port
+     99
+    100	0151  B0 20				     mov al, 20h								    +
+    101				     ;non-specific end of interrupt
+    102	0153  E6 20				     out 20h, al								    +
+    103				     ;interrupt	controller port
+    104
+    105	0155  07 1F 5F 5E 5A 59	5B+		     pop es ds di si dx	cx bx ax						    +
+    106	      58		     ;return all registers after interrupt
+    107	015D  EA					     db	0eah								    +
+    108				     ;jump to old procedural handler of	09h interrupt
+    109	015E  0000		     old09ofs	     dw	0									    +
+    110				     ;previous offset
+    111	0160  0000		     old09seg	     dw	0									    +
+    112				     ;in that segment
+    113	0162					     endp
+    114
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 3
 resident.asm
 
 
 
-    115	016C  0000		     old09ofs	     dw	0									    +
-    116				     ;previous offset
-    117	016E  0000		     old09seg	     dw	0									    +
-    118				     ;in segment
-    119	0170					     endp
-    120
-    121				     ;------------------------------------------------------------------------------
-    122
-    123				     ;------------------------------------------------------------------------------
-    124				     ; Main Border
-    125				     ; Entry:		     None
-    126				     ; Exit:		     SI
-    127				     ; Destroyed:    SI, BP, BX, DX
-    128				     ;------------------------------------------------------------------------------
-    129
-    130	0170			     MainBorder	     proc
-    131
-    132	0170  33 C0					     xor ax, ax								    +
-    133				     ;ax = 0
-    134	0172  33 DB					     xor bx, bx								    +
-    135				     ;bx = 0
-    136	0174  33 C9					     xor cx, cx								    +
-    137				     ;cx = 0
-    138	0176  33 D2					     xor dx, dx								    +
-    139				     ;dx = 0
-    140
-    141	0178  BB B800					     mov bx, video_segment						    +
-    142				     ;bx = video segment position
-    143	017B  8E C3					     mov es, bx								    +
-    144				     ;es = bx
-    145
-    146	017D  E8 00E7					     call CalcParam							    +
-    147				     ;x_start, y_start,	y_string
-    148	0180  E8 0011					     call SetStyle							    +
-    149				     ;calculate	si
-    150
-    151	0183  8A 36 0001r				     mov dh, height							    +
-    152				     ;dh = height
-    153	0187  8A 16 0000r				     mov dl, len							    +
-    154				     ;dl = len
-    155	018B  33 FF					     xor di, di								    +
-    156				     ;di = 0;
-    157	018D  E8 0136					     call DrawFrame							    +
-    158				     ;Drawing frame
-    159	0190  E8 0010					     call DrawString							    +
-    160				     ;Drawing string inside frame
-    161
-    162	0193  C3					     ret								    +
-    163				     ;return function value
-    164	0194						     endp								    +
-    165				     ;proc's ending
-    166
-    167				     ;------------------------------------------------------------------------------
-    168
-    169				     ;------------------------------------------------------------------------------
-    170				     ; Set frame style
-    171				     ; Entry:		     None
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 4
+    115				     ;------------------------------------------------------------------------------
+    116
+    117				     ;------------------------------------------------------------------------------
+    118				     ; Main program to view frame
+    119				     ; Entry:		     None
+    120				     ; Exit:		     None
+    121				     ; Destroyed:    AX, CX, BX, ES, DX, DI
+    122				     ;------------------------------------------------------------------------------
+    123
+    124	0162			     MainBorder	     proc
+    125
+    126	0162  33 C0					     xor ax, ax								    +
+    127				     ;ax = 0
+    128	0164  33 C9					     xor cx, cx								    +
+    129				     ;cx = 0
+    130
+    131	0166  BB B800					     mov bx, video_segment						    +
+    132				     ;bx = video segment position
+    133	0169  8E C3					     mov es, bx								    +
+    134				     ;es = bx
+    135
+    136	016B  E8 007F					     call CalcParam							    +
+    137				     ;x_start, y_start,	y_string
+    138
+    139	016E  8A 36 02A9r				     mov dh, height							    +
+    140				     ;dh = height
+    141	0172  8A 16 02A8r				     mov dl, len							    +
+    142				     ;dl = len
+    143	0176  33 FF					     xor di, di								    +
+    144				     ;di = 0;
+    145	0178  E8 00D7					     call DrawFrame							    +
+    146				     ;Drawing frame
+    147	017B  E8 004D					     call DrawString							    +
+    148				     ;Drawing string inside frame
+    149
+    150	017E  C3					     ret								    +
+    151				     ;return function value
+    152	017F						     endp								    +
+    153				     ;proc's ending
+    154
+    155				     ;------------------------------------------------------------------------------
+    156
+    157				     ;------------------------------------------------------------------------------
+    158				     ; Convert hex to ascii code
+    159				     ; Entry:		     AL	- converted symbol
+    160				     ; Exit:		     AL	- result of converting
+    161				     ; Destroyed:    AL
+    162				     ;------------------------------------------------------------------------------
+    163
+    164	017F			     htoa    proc
+    165
+    166	017F  3C 0A				     cmp al, 10
+    167	0181  73 02				     jae letter
+    168	0183  72 05				     jb	digit
+    169
+    170	0185					     letter:
+    171	0185  04 37					     add al, 'A' - 10
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 4
 resident.asm
 
 
 
-    172				     ; Exit:		     SI
-    173				     ; Destroyed:    SI, BP, BX, DX
-    174				     ;------------------------------------------------------------------------------
-    175
-    176	0194			     SetStyle	     proc
-    177
-    178	0194  33 D2					     xor dx, dx								    +
-    179				     ;dx = 0
-    180	0196  BA 0010r					     mov dx, offset AXString						    +
-    181				     ;dx = &AXString
-    182	0199  BD 0006r					     mov bp, offset str_data_pos					    +
-    183				     ;bp = &str_data_pos
-    184	019C  89 56 00					     mov [bp], dx							    +
-    185				     ;str_data_pos = AXString
-    186
-    187	019F  BE 0007r					     mov si, offset DoubleFrameString				     ;si =  +
-    188				     &style string
-    189
-    190	01A2  C3					     ret								    +
-    191				     ;return function value
-    192	01A3						     endp								    +
-    193				     ;proc's ending
-    194
-    195				     ;------------------------------------------------------------------------------
-    196
-    197				     ;------------------------------------------------------------------------------
-    198				     ; Draw string inside the frame
-    199				     ; Entry:		     None
-    200				     ; Exit:		     None
-    201				     ; Destroyed:    SI, BP, CX, AH
-    202				     ;------------------------------------------------------------------------------
-    203
-    204	01A3			     DrawString	     proc
-    205
-    206	01A3  B9 0004					     mov cx, reg_in_frame						    +
-    207				     ;cx = amount of registers
-    208	01A6						     reg_str:								    +
-    209				     ;<--------------------------------------------------------------|
-    210	01A6  51						     push cx							    +
-    211				     ;save cx											    +
-    212				     |
-    213	01A7  BD 0006r						     mov bp, offset str_data_pos				    +
-    214				     ;bp = &str_data_pos									    +
-    215				     |
-    216	01AA  8B 76 00						     mov si, [bp]						    +
-    217				     ;si = str_data_pos										    +
-    218				     |
-    219	01AD  33 C9						     xor cx, cx							    +
-    220				     ;cx = 0											    +
-    221				     |
-    222	01AF  E8 0100						     call StrLen						    +
-    223				     ;cx = len(si)										    +
-    224				     |
-    225	01B2  51						     push cx							    +
-    226				     ;save len											    +
-    227				     |
-    228																    +
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 5
+    172	0187  EB 06 90					     jmp ending
+    173	018A					     digit:
+    174	018A  04 30					     add al, '0'
+    175	018C  EB 01 90					     jmp ending
+    176
+    177	018F					     ending:
+    178	018F  C3				     ret									    +
+    179				     ;return function value
+    180	0190					     endp									    +
+    181				     ;proc's ending
+    182
+    183				     ;------------------------------------------------------------------------------
+    184
+    185				     ;------------------------------------------------------------------------------
+    186				     ; Print register value
+    187				     ; Entry:		     BX	- right	offset on register in stack segment
+    188				     ; Exit:		     None
+    189				     ; Destroyed:    AL
+    190				     ;------------------------------------------------------------------------------
+    191
+    192	0190			     RegVal  proc
+    193
+    194	0190  51				     push cx
+    195	0191  53				     push bx
+    196	0192  B9 0002				     mov cx, 0002h
+    197
+    198	0195					     half:
+    199	0195  2B D9					     sub bx, cx
+    200	0197  83 C3 02					     add bx, 2
+    201
+    202	019A  36: 8A 07					     mov al, ss:[bx]
+    203	019D  D0 E8 D0 E8 D0 E8	D0+			     shr al, 4
+    204	      E8
+    205	01A5  E8 FFD7					     call htoa
+    206	01A8  AB					     stosw
+    207
+    208	01A9  36: 8A 07					     mov al, ss:[bx]
+    209	01AC  24 0F					     and al, 0fh
+    210	01AE  E8 FFCE					     call htoa
+    211	01B1  AB					     stosw
+    212	01B2  E2 E1				     loop half
+    213
+    214	01B4  5B				     pop bx
+    215	01B5  59				     pop cx
+    216
+    217	01B6  C3				     ret									    +
+    218				     ;return function value
+    219	01B7					     endp									    +
+    220				     ;proc's ending
+    221
+    222				     ;------------------------------------------------------------------------------
+    223
+    224				     ;------------------------------------------------------------------------------
+    225				     ; Print information about one register
+    226				     ; Entry:		     SI	- address of string to current register	name
+    227				     ;				     DI	- place	on the screen where will be register value
+    228				     ; Exit:		     None
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 5
 resident.asm
 
 
 
-    229				     ;						     Shifting					    +
-    230				     |
-    231	01B3  BD 0006r						     mov bp, offset str_data_pos				    +
-    232				     ;bp = &str_data_pos									    +
-    233				     |
-    234	01B6  8B 76 00						     mov si, [bp]						    +
-    235				     ;si = &inside frame string									    +
-    236				     |
-    237	01B9  E8 00C9						     call EvalShift						    +
-    238				     ;di = 2 * window_len * y_start + (x_start + (cx - len) / 2) * 2 |
-    239																    +
-    240				     ;						     Print					    +
-    241				     |
-    242	01BC  8A 26 0002r					     mov ah, frame_color					    +
-    243				     ;ah = string color										    +
-    244				     |
-    245	01C0  E8 00FA						     call PrintInsideString					    +
-    246				     ;print string										    +
-    247				     |
-    248																    +
-    249				     ;						     Next Row					    +
-    250				     |
-    251	01C3  59						     pop cx							    +
-    252				     ;return len										    +
-    253				     |
-    254	01C4  BD 0006r						     mov bp, offset str_data_pos				    +
-    255				     ;bp = &str_data_pos									    +
-    256				     |
-    257	01C7  41						     inc cx							    +
-    258				     ;cx += 1											    +
-    259				     |
-    260	01C8  01 4E 00						     add [bp], cx						    +
-    261				     ;str_data_pos = len + 1									    +
-    262				     |
-    263	01CB  80 06 0005r 01					     add y_string, 1						    +
-    264				     ;y_string += 1										    +
-    265				     |
-    266	01D0  59						     pop cx							    +
-    267				     ;return loop counter									    +
-    268				     |
-    269																    +
-    270				     ;						     Out Register
-    271	01D1  83 EF 08						     sub di, 2 * 4
-    272	01D4  50 53 51 52					     push ax bx	cx dx
-    273	01D8  BD 0030r						     mov bp, offset print_ax
-    274	01DB  83 ED 04						     sub bp, reg_in_frame
-    275	01DE  03 E9						     add bp, cx
-    276	01E0  50						     push ax
-    277	01E1  8A 46 00						     mov al, [bp]
-    278	01E4  A2 01E8r						     mov CurReg, al
-    279	01E7  58						     pop ax
-    280	01E8  00						     CurReg db 0
-    281	01E9  E8 0007						     call OutAx
-    282	01EC  58 5B 59 5A					     pop ax bx cx dx
-    283
-    284	01F0  E2 B4					     loop reg_str							    +
-    285				     ;---------------------------------------------------------------|
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 6
+    229				     ; Destroyed:    DI, SI, AL
+    230				     ;------------------------------------------------------------------------------
+    231
+    232	01B7			     OneRegister     proc
+    233
+    234	01B7  57					     push di
+    235	01B8  51					     push cx
+    236
+    237	01B9  B9 0003					     mov cx, 0003h
+    238
+    239	01BC						     register_name:
+    240	01BC  AC						     lodsb
+    241	01BD  AB						     stosw
+    242	01BE  E2 FC					     loop register_name
+    243	01C0  46					     inc si
+    244
+    245	01C1  E8 FFCC					     call RegVal
+    246
+    247	01C4  59					     pop cx
+    248	01C5  5F					     pop di
+    249	01C6  81 C7 00A0				     add di, 0002h * window_len
+    250
+    251	01CA  C3					     ret								    +
+    252				     ;return function value
+    253	01CB						     endp								    +
+    254				     ;proc's ending
+    255
+    256				     ;------------------------------------------------------------------------------
+    257
+    258				     ;------------------------------------------------------------------------------
+    259				     ; Draw registers inside the frame
+    260				     ; Entry:		     SI	- first	register name string address
+    261				     ; Exit:		     None
+    262				     ; Destroyed:    CX, AX, BX
+    263				     ;------------------------------------------------------------------------------
+    264
+    265	01CB			     DrawString	     proc
+    266
+    267	01CB  B9 0007					     mov cx, 0007h
+    268	01CE  E8 0049					     call EvalShift
+    269	01D1  B9 0008 90				     mov cx, reg_in_frame
+    270	01D5  B4 4E					     mov ah, 4eh
+    271
+    272	01D7  50					     push ax
+    273	01D8  8B DC					     mov bx, sp
+    274	01DA  33 C0					     xor ax, ax
+    275	01DC  B8 0008					     mov ax, reg_in_frame
+    276	01DF  D1 E0					     shl ax, 1
+    277	01E1  03 D8					     add bx, ax								    +
+    278				     ;?????????	?? ax ?	?????
+    279	01E3  58					     pop ax
+    280
+    281	01E4						     all_registers:
+    282	01E4  E8 FFD0						     call OneRegister
+    283	01E7  83 EB 02						     sub bx, 0002h
+    284	01EA  E2 F8					     loop all_registers
+    285
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 6
 resident.asm
 
 
 
-    286
-    287	01F2  C3					     ret								    +
-    288				     ;return function value
-    289	01F3						     endp								    +
-    290				     ;proc's ending
-    291
-    292				     ;------------------------------------------------------------------------------
-    293
-    294				     ;------------------------------------------------------------------------------
-    295				     ; Show ax register	value
-    296				     ; Entry:		     AX	- printing value
-    297				     ; Exit:		     NONE
-    298				     ; Destroyed:    CX, BX, DX, AX
-    299				     ;------------------------------------------------------------------------------
-    300
-    301	01F3			     OutAx   proc
-    302
-    303	01F3  B1 10				     mov cl, 16
-    304
-    305	01F5					     division:
-    306	01F5  F6 F1					     div cl
-    307	01F7  80 FC 0A					     cmp ah, 10
-    308	01FA  73 06					     jae letter
-    309
-    310	01FC  80 C4 30						     add ah, '0'
-    311	01FF  EB 04 90						     jmp both_print_reg
-    312	0202						     letter:
-    313	0202  80 C4 37						     add ah, 'A' - 10
+    286	01EC  C3					     ret								    +
+    287				     ;return function value
+    288	01ED						     endp								    +
+    289				     ;proc's ending
+    290
+    291				     ;------------------------------------------------------------------------------
+    292
+    293				     ;------------------------------------------------------------------------------
+    294				     ; Calculate values	of variables: x_start, y_start,	y_string
+    295				     ; Entry:		     None
+    296				     ; Exit:		     None
+    297				     ; Destroyed:    AX, BX, DX, BP
+    298				     ;------------------------------------------------------------------------------
+    299
+    300	01ED			     CalcParam	     proc
+    301
+    302	01ED  A0 02A8r					     mov al, len							    +
+    303				     ;al = len
+    304	01F0  8A 16 02A9r				     mov dl, height							    +
+    305				     ;dl = height
+    306	01F4  B3 28					     mov bl, window_len	/ 2						    +
+    307				     ;bp = 80 /	2
+    308	01F6  88 1E 02ABr				     mov x_start, bl							    +
+    309				     ;x_start =	40
+    310	01FA  D1 E8					     shr ax, 1								    +
+    311				     ;ax /= 2
+    312	01FC  28 06 02ABr				     sub x_start, al							    +
+    313				     ;x_start -= len / 2
     314
-    315	0205						     both_print_reg:
-    316	0205  8A E8					     mov ch, al
-    317	0207  86 E0					     xchg ah, al
-    318	0209  8A 26 0002r				     mov     ah, frame_color
-    319	020D  AB					     stosw
-    320	020E  8A C5					     mov al, ch
-    321	0210  32 E4					     xor ah, ah
-    322	0212  3C 00					     cmp al, 0
-    323	0214  75 DF					     jne division
-    324
-    325	0216  C3				     ret									    +
-    326				     ;return function value
-    327	0217					     endp									    +
-    328				     ;proc's ending
-    329
-    330				     ;------------------------------------------------------------------------------
-    331
-    332				     ;------------------------------------------------------------------------------
-    333				     ; ASCII code symbols to hex integer (ABCDEF instead of abcdef)
-    334				     ; Entry:		     AL	- first	symbol
-    335				     ; Exit:		     BL	- hex
-    336				     ; Destroyed:    CX, BX, DX, AX
-    337				     ;------------------------------------------------------------------------------
+    315	0200  B3 0C					     mov bl, window_height / 2						    +
+    316				     ;bp = 25 /	2
+    317	0202  88 1E 02ACr				     mov y_start, bl							    +
+    318				     ;y_start =	25 / 2
+    319	0206  D1 EA					     shr dx, 1								    +
+    320				     ;dx /= 2
+    321	0208  28 16 02ACr				     sub y_start, dl							    +
+    322				     ;y_start -= height	/ 2
+    323
+    324	020C  8A 1E 02ACr				     mov bl, y_start							    +
+    325				     ;bp = y_start
+    326	0210  FE C3					     inc bl								    +
+    327				     ;bl += 1
+    328	0212  88 1E 02ADr				     mov y_string, bl							    +
+    329				     ;y_string = y_start + 1
+    330
+    331	0216  BE 02AFr					     mov si, offset DoubleFrameString				     ;si =  +
+    332				     &style string
+    333
+    334	0219  C3					     ret								    +
+    335				     ;return function value
+    336	021A						     endp								    +
+    337				     ;proc's ending
     338
-    339	0217			     Atoh    proc
+    339				     ;------------------------------------------------------------------------------
     340
-    341	0217  B9 0001				     mov cx, 1									    +
-    342				     ;cx = 1
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 7
+    341				     ;------------------------------------------------------------------------------
+    342				     ; Eval shift of frame inside string
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 7
 resident.asm
 
 
 
-    343	021A  33 DB				     xor bx, bx									    +
-    344				     ;bx = 0
-    345	021C  33 D2				     xor dx, dx									    +
-    346				     ;dx = 0
-    347	021E  32 E4				     xor ah, ah									    +
-    348				     ;ah = 0
+    343				     ; Entry:		     CX	= string length
+    344				     ; Exit:		     None
+    345				     ; Destroyed:    DI, BP, AX, BX
+    346				     ;------------------------------------------------------------------------------
+    347
+    348	021A			     EvalShift	     proc
     349
-    350	0220					     get_hex:									    +
-    351				     ;<--------------------------|
-    352	0220  3C 20					     cmp al, ' '							    +
-    353				     ;if (al ==	' ') zf	= 1	     |
-    354	0222  74 1D					     je	end_atoh							    +
-    355				     ;if (zf ==	1) goto	end_atoi     |
-    356																    +
-    357				     ;							     |
-    358	0224  D1 E3 D1 E3 D1 E3	D1+			     shl bx, 4								    +
-    359	      E3		     ;bx *= 16					     |
-    360																    +
-    361				     ;							     |
-    362	022C  3C 41					     cmp al, 'A'							    +
-    363				     ;if (al - 65 < 0) fs = 1	     |
-    364	022E  79 06					     jns no_sign							    +
-    365				     ;if (fs !=	1) goto	no_sign	     |
-    366	0230  2D 0030					     sub ax, '0'							    +
-    367				     ;ax -= 48					     |
-    368	0233  EB 04 90					     jmp both								    +
-    369				     ;goto both					     |
-    370	0236						     no_sign:								    +
-    371				     ;							     |
-    372	0236  2D 0037						     sub ax, 55							    +
-    373				     ;ax -= 55					     |
-    374	0239						     both:								    +
-    375				     ;							     |
-    376	0239  03 D8					     add bx, ax								    +
-    377				     ;bx += ax					     |
-    378																    +
-    379				     ;							     |
-    380	023B  83 C1 02					     add cx, 2								    +
-    381				     ;cx += 2					     |
-    382	023E  AC					     lodsb								    +
-    383				     ;mov al, ds:[si]			     |
-    384	023F  E2 DF				     loop get_hex								    +
-    385				     ;---------------------------|
-    386	0241					     end_atoh:
-    387
-    388	0241  C3				     ret									    +
-    389				     ;return function value
-    390	0242					     endp									    +
-    391				     ;proc's ending
-    392
-    393				     ;------------------------------------------------------------------------------
-    394
-    395				     ;------------------------------------------------------------------------------
-    396				     ; ASCII code symbols to integer
-    397				     ; Entry:		     AL	- first	symbol
-    398				     ; Exit:		     BL	- integer
-    399				     ; Destroyed:    CX, BX, DX, AX
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 8
+    350							     ;di = y_string * window_len * 2 + (x_start	+ (cx -	len) / 2) * 2
+    351	021A  A0 02ADr					     mov al, y_string							    +
+    352				     ;al = y_string
+    353	021D  D0 E0					     shl al, 1								    +
+    354				     ;al *= 2
+    355	021F  32 E4					     xor ah, ah								    +
+    356				     ;ah = 0
+    357	0221  BD 0050					     mov bp, window_len							    +
+    358				     ;bp = 80
+    359	0224  52					     push dx								    +
+    360				     ;save size	of frame in stack
+    361	0225  F7 E5					     mul bp								    +
+    362				     ;ax = 2 * y_start * 80
+    363	0227  5A					     pop dx								    +
+    364				     ;return size of frame from	stack to dxâ‰ˆ
+    365	0228  8B F8					     mov di, ax								    +
+    366				     ;di = ax
+    367
+    368	022A  32 E4					     xor ah, ah								    +
+    369				     ;ah = 0
+    370	022C  32 FF					     xor bh, bh								    +
+    371				     ;bh = 0
+    372	022E  A0 02ABr					     mov al, x_start							    +
+    373				     ;al = x_start
+    374	0231  BD 02A8r					     mov bp, offset len							    +
+    375				     ;bp = &len
+    376	0234  8A 1E 02A8r				     mov bl, len							    +
+    377				     ;bl = len
+    378	0238  2A D9					     sub bl, cl								    +
+    379				     ;bl -= cl
+    380	023A  D0 EB					     shr bl, 1								    +
+    381				     ;bl = (cx - len) /	2
+    382	023C  02 C3					     add al, bl								    +
+    383				     ;x_start += (cx - len) / 2
+    384	023E  D0 E0					     shl al, 1								    +
+    385				     ;al *= 2
+    386	0240  03 F8					     add di, ax								    +
+    387				     ;di += al
+    388
+    389	0242  D1 EF					     shr di, 1								    +
+    390				     ;di /= 2
+    391	0244  D1 E7					     shl di, 1								    +
+    392				     ;di *= 2
+    393
+    394	0246  C3					     ret								    +
+    395				     ;return function value
+    396	0247						     endp								    +
+    397				     ;proc's ending
+    398
+    399				     ;------------------------------------------------------------------------------
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 8
 resident.asm
 
 
 
-    400				     ;------------------------------------------------------------------------------
-    401
-    402	0242			     Atoi    proc
-    403
-    404	0242  B9 0001				     mov cx, 1									    +
-    405				     ;cx = 1
-    406	0245  33 DB				     xor bx, bx									    +
-    407				     ;bx = 0
-    408	0247  33 D2				     xor dx, dx									    +
-    409				     ;dx = 0
-    410	0249  32 E4				     xor ah, ah									    +
-    411				     ;ah = 0
-    412
-    413	024B					     get_symbol:								    +
-    414				     ;<--------------------------|
-    415	024B  3C 20					     cmp al, ' '							    +
-    416				     ;if (al ==	' ') zf	= 1	     |
-    417	024D  74 17					     je	end_atoi							    +
-    418				     ;if (zf ==	1) goto	end_atoi     |
-    419																    +
-    420				     ;							     |
-    421	024F  53					     push bx								    +
-    422				     ;save bx					     |
-    423	0250  D1 E3 D1 E3 D1 E3				     shl bx, 3								    +
-    424				     ;bx *= 8					     |
-    425																    +
-    426				     ;							     |
-    427	0256  5A					     pop dx								    +
-    428				     ;return bx: dx = bx		     |
-    429	0257  D1 E2					     shl dx, 1								    +
-    430				     ;dx *= 2					     |
-    431	0259  03 DA					     add bx, dx								    +
-    432				     ;bx += dx					     |
-    433																    +
-    434				     ;							     |
-    435	025B  2D 0030					     sub ax, 48								    +
-    436				     ;ax -= 48					     |
-    437	025E  03 D8					     add bx, ax								    +
-    438				     ;bx += ax					     |
-    439																    +
-    440				     ;							     |
-    441	0260  83 C1 02					     add cx, 2								    +
-    442				     ;cx += 2					     |
-    443	0263  AC					     lodsb								    +
-    444				     ;mov al, ds:[si]			     |
-    445	0264  E2 E5				     loop get_symbol								    +
-    446				     ;---------------------------|
-    447	0266					     end_atoi:
-    448
-    449	0266  C3				     ret									    +
-    450				     ;return function value
-    451	0267					     endp									    +
-    452				     ;proc's ending
-    453
-    454				     ;------------------------------------------------------------------------------
-    455
-    456				     ;------------------------------------------------------------------------------
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 9
+    400
+    401				     ;------------------------------------------------------------------------------
+    402				     ; Eval string length with '$' terminal symbol
+    403				     ; Entry:		     SI	= data string address
+    404				     ; Exit:		     CX
+    405				     ; Destroyed:    SI, AL, CX
+    406				     ;------------------------------------------------------------------------------
+    407
+    408	0247			     StrLen  proc
+    409
+    410	0247					     str_len:									    +
+    411				     ;<------------------------------|
+    412	0247  AC					     lodsb								    +
+    413				     ;mov al, ds:[si]				     |
+    414	0248  3C 24					     cmp al, '$'							    +
+    415				     ;if (al ==	'$') zf	= 1		     |
+    416	024A  74 05					     jz	end_str_len							    +
+    417				     ;if (zf ==	1) goto	end_str_len  |
+    418	024C  83 C1 02					     add cx, 2								    +
+    419				     ;cx += 2						     |
+    420	024F  E2 F6				     loop str_len								    +
+    421				     ;-------------------------------|
+    422	0251					     end_str_len:								    +
+    423				     ;label of str len ending
+    424
+    425	0251  C3				     ret									    +
+    426				     ;return function value
+    427	0252					     endp									    +
+    428				     ;proc's ending
+    429
+    430				     ;------------------------------------------------------------------------------
+    431
+    432				     ;------------------------------------------------------------------------------
+    433				     ; Draw frame with size: len, height
+    434				     ; Entry:		     SI	= data string address
+    435				     ;				     DH	= frame	height
+    436				     ;				     DL	= frame	len
+    437				     ; Exit:		     None
+    438				     ; Destroyed:    BX, CX, DI
+    439				     ;------------------------------------------------------------------------------
+    440
+    441	0252			     DrawFrame	     proc
+    442
+    443	0252  A0 02ACr					     mov al, y_start							    +
+    444				     ;al = y_start
+    445	0255  D0 E0					     shl al, 1								    +
+    446				     ;al *= 2
+    447	0257  BD 0050					     mov bp, window_len							    +
+    448				     ;bp = 80
+    449	025A  52					     push dx								    +
+    450				     ;save size	of frame in stack
+    451	025B  F7 E5					     mul bp								    +
+    452				     ;ax = 2 * y_start * 80
+    453	025D  5A					     pop dx								    +
+    454				     ;return size of frame from	stack to dx
+    455	025E  8B F8					     mov di, ax								    +
+    456				     ;di = ax
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 9
 resident.asm
 
 
 
-    457				     ; Calculate values	of variables: x_start, y_start,	y_string
-    458				     ; Entry:		     None
-    459				     ; Exit:		     None
-    460				     ; Destroyed:    AX, BX, DX, BP
-    461				     ;------------------------------------------------------------------------------
-    462
-    463	0267			     CalcParam	     proc
-    464
-    465							     ;x_start =	window_len - len
-    466	0267  A0 0000r					     mov al, len							    +
-    467				     ;al = len
-    468	026A  B3 50					     mov bl, window_len							    +
-    469				     ;bp = 80
-    470	026C  88 1E 0003r				     mov x_start, bl							    +
-    471				     ;x_start =	80
-    472	0270  28 06 0003r				     sub x_start, al							    +
-    473				     ;x_start -= len
-    474
-    475	0274  C6 06 0004r 02 90				     mov y_start, 2							    +
-    476				     ;y_start =	1
-    477
-    478	027A  8A 1E 0004r				     mov bl, y_start							    +
-    479				     ;bp = y_start
-    480	027E  FE C3					     inc bl								    +
-    481				     ;bl += 1
-    482	0280  88 1E 0005r				     mov y_string, bl							    +
-    483				     ;y_string = y_start + 1
-    484
-    485	0284  C3					     ret								    +
-    486				     ;return function value
-    487	0285						     endp								    +
-    488				     ;proc's ending
-    489
-    490				     ;------------------------------------------------------------------------------
+    457	0260  A0 02ABr					     mov al, x_start							    +
+    458				     ;ax = x_start
+    459	0263  D0 E0					     shl al, 1								    +
+    460				     ;ax *= 2
+    461	0265  32 E4					     xor ah, ah								    +
+    462				     ;ah = 0
+    463	0267  03 F8					     add di, ax								    +
+    464				     ;di += 2 *	x_start
+    465	0269  E8 001E					     call PrintString							    +
+    466				     ;print string
+    467
+    468	026C  8A CE					     mov cl, dh								    +
+    469				     ;loop on length of	frame string
+    470	026E  32 ED					     xor ch, ch								    +
+    471				     ;ch = 0
+    472	0270  83 E9 02					     sub cx, 2								    +
+    473				     ;without first and	lsat symbols of	string
+    474	0273						     cycle1:								    +
+    475				     ;<--------------------------|
+    476	0273  81 C7 00A0					     add di, window_len	* 2					    +
+    477				     ;di += window_len * 2	     |
+    478	0277  E8 0010						     call PrintString						    +
+    479				     ;print string			     |
+    480	027A  83 EE 03						     sub si, 3							    +
+    481				     ;si -= 3					     |
+    482	027D  E2 F4					     loop cycle1							    +
+    483				     ;---------------------------|
+    484	027F  83 C6 03					     add si, 3								    +
+    485				     ;si += 3
+    486
+    487	0282  81 C7 00A0				     add di, window_len	* 2						    +
+    488				     ;di += window_len * 2 (next line)
+    489	0286  E8 0001					     call PrintString							    +
+    490				     ;print string
     491
-    492				     ;------------------------------------------------------------------------------
-    493				     ; Eval shift of frame inside string
-    494				     ; Entry:		     CX	= string length
-    495				     ; Exit:		     None
-    496				     ; Destroyed:    DI, BP, AX, BX
+    492	0289  C3					     ret								    +
+    493				     ;return function value
+    494	028A						     endp								    +
+    495				     ;proc's ending
+    496
     497				     ;------------------------------------------------------------------------------
     498
-    499	0285			     EvalShift	     proc
-    500
-    501							     ;di = y_string * window_len * 2 + (x_start	+ (cx -	len) / 2) * 2
-    502	0285  A0 0005r					     mov al, y_string							    +
-    503				     ;al = y_string
-    504	0288  D0 E0					     shl al, 1								    +
-    505				     ;al *= 2
-    506	028A  32 E4					     xor ah, ah								    +
-    507				     ;ah = 0
-    508	028C  BD 0050					     mov bp, window_len							    +
-    509				     ;bp = 80
-    510	028F  52					     push dx								    +
-    511				     ;save size	of frame in stack
-    512	0290  F7 E5					     mul bp								    +
-    513				     ;ax = 2 * y_start * 80
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 10
+    499				     ;------------------------------------------------------------------------------
+    500				     ; Draws string to console in format: s1s2....s2s3
+    501				     ; Entry:		     SI	= string address
+    502				     ;				     DL	= string len
+    503				     ; Exit:		     None
+    504				     ; Destroyed:    AX, BX, CX, SI
+    505				     ;------------------------------------------------------------------------------
+    506
+    507	028A			     PrintString     proc
+    508
+    509	028A  8A 26 02AAr				     mov ah, frame_color						    +
+    510				     ;set symbols color
+    511
+    512	028E  AC					     lodsb								    +
+    513				     ;mov al, ds:[si]
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 10
 resident.asm
 
 
 
-    514	0292  5A					     pop dx								    +
-    515				     ;return size of frame from	stack to dxâ‰ˆ
-    516	0293  8B F8					     mov di, ax								    +
-    517				     ;di = ax
-    518
-    519	0295  32 E4					     xor ah, ah								    +
-    520				     ;ah = 0
-    521	0297  32 FF					     xor bh, bh								    +
-    522				     ;bh = 0
-    523	0299  A0 0003r					     mov al, x_start							    +
-    524				     ;al = x_start
-    525	029C  BD 0000r					     mov bp, offset len							    +
-    526				     ;bp = &len
-    527	029F  8A 1E 0000r				     mov bl, len							    +
-    528				     ;bl = len
-    529	02A3  2A D9					     sub bl, cl								    +
-    530				     ;bl -= cl
-    531	02A5  D0 EB					     shr bl, 1								    +
-    532				     ;bl = (cx - len) /	2
-    533	02A7  02 C3					     add al, bl								    +
-    534				     ;x_start += (cx - len) / 2
-    535	02A9  D0 E0					     shl al, 1								    +
-    536				     ;al *= 2
-    537	02AB  03 F8					     add di, ax								    +
-    538				     ;di += al
-    539
-    540	02AD  D1 EF					     shr di, 1								    +
-    541				     ;di /= 2
-    542	02AF  D1 E7					     shl di, 1								    +
-    543				     ;di *= 2
-    544
-    545	02B1  C3					     ret								    +
-    546				     ;return function value
-    547	02B2						     endp								    +
-    548				     ;proc's ending
+    514	028F  AB					     stosw								    +
+    515				     ;mov es:[di], ax /	add di,	2
+    516
+    517	0290  51					     push cx								    +
+    518				     ;save prev	loop cnt
+    519	0291  8A CA					     mov cl, dl								    +
+    520				     ;counter =	dl
+    521	0293  80 E9 02					     sub cl, 2								    +
+    522				     ;without top and bottom line
+    523	0296  8A 04					     mov al, [si]							    +
+    524				     ;al = [si]
+    525	0298						     cycle:								    +
+    526				     ;<------------------------------|
+    527	0298  AB						     stosw							    +
+    528				     ;mov es:[di], ax /	add di,	2    |
+    529	0299  E2 FD					     loop cycle								    +
+    530				     ;-------------------------------|
+    531	029B  46					     inc si								    +
+    532				     ;bx++
+    533	029C  59					     pop cx								    +
+    534				     ;return prev loop cnt
+    535
+    536	029D  AC					     lodsb								    +
+    537				     ;mov al, ds:[si]
+    538	029E  AB					     stosw								    +
+    539				     ;mov es:[di], ax /	add di,	2
+    540
+    541	029F  8A DA					     mov bl, dl								    +
+    542				     ;bl = dl
+    543	02A1  32 FF					     xor bh, bh								    +
+    544				     ;bh = 0
+    545	02A3  D1 E3					     shl bx, 1								    +
+    546				     ;bx *= 2
+    547	02A5  2B FB					     sub di, bx								    +
+    548				     ;set di to	line beginning
     549
-    550				     ;------------------------------------------------------------------------------
-    551
-    552
-    553				     ;------------------------------------------------------------------------------
-    554				     ; Eval string length with '$' terminal symbol
-    555				     ; Entry:		     SI	= data string address
-    556				     ; Exit:		     CX
-    557				     ; Destroyed:    SI, AL, CX
-    558				     ;------------------------------------------------------------------------------
-    559
-    560	02B2			     StrLen  proc
-    561
-    562	02B2					     str_len:									    +
-    563				     ;<------------------------------|
-    564	02B2  AC					     lodsb								    +
-    565				     ;mov al, ds:[si]				     |
-    566	02B3  3C 24					     cmp al, '$'							    +
-    567				     ;if (al ==	'$') zf	= 1		     |
-    568	02B5  74 05					     jz	end_str_len							    +
-    569				     ;if (zf ==	1) goto	end_str_len  |
-    570	02B7  83 C1 02					     add cx, 2								    +
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 11
+    550	02A7  C3					     ret								    +
+    551				     ;return function value
+    552	02A8						     endp								    +
+    553				     ;proc's ending
+    554
+    555				     ;------------------------------------------------------------------------------
+    556
+    557	02A8  1F		     len			     db	31							    +
+    558				     ;frame row	length
+    559	02A9  0A		     height			     db	10							    +
+    560				     ;frame column height
+    561	02AA  4E		     frame_color	     db	4eh								    +
+    562				     ;frame element color
+    563
+    564	02AB  00		     x_start			     db	0							    +
+    565				     ;x	frame start position
+    566	02AC  00		     y_start			     db	0							    +
+    567				     ;y	frame start position
+    568	02AD  00		     y_string			     db	0							    +
+    569				     ;y	string start position
+    570	02AE  00		     str_data_pos	     db	0								    +
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 11
 resident.asm
 
 
 
-    571				     ;cx += 2						     |
-    572	02BA  E2 F6				     loop str_len								    +
-    573				     ;-------------------------------|
-    574	02BC					     end_str_len:								    +
-    575				     ;label of str len ending
-    576
-    577	02BC  C3				     ret									    +
-    578				     ;return function value
-    579	02BD					     endp									    +
-    580				     ;proc's ending
-    581
-    582				     ;------------------------------------------------------------------------------
-    583
-    584				     ;------------------------------------------------------------------------------
-    585				     ; Print string inside the frame
-    586				     ; Entry:		     BX	= data string address
-    587				     ;				     AH	= string color
-    588				     ;				     CX	= string length
-    589				     ; Exit:		     None
-    590				     ; Destroyed:    BX, AL, DI
-    591				     ;------------------------------------------------------------------------------
-    592
-    593	02BD			     PrintInsideString	     proc
-    594
-    595	02BD								     print_string:					    +
-    596				     ;<----------------------------------|
-    597	02BD  AC								     lodsb					    +
-    598				     ;mov al, ds:[si]					     |
-    599	02BE  AB								     stosw					    +
-    600				     ;mov es:[di], ax /	add di,	2	     |
-    601	02BF  3C 24								     cmp al, '$'				    +
-    602				     ;if (al ==	'$') zf	= 1			     |
-    603	02C1  74 02								     jz	end_print_string			    +
-    604				     ;if (zf ==	1) goto	end_print_string     |
-    605	02C3  E2 F8							     loop print_string					    +
-    606				     ;-----------------------------------|
-    607	02C5								     end_print_string:					    +
-    608				     ;label of print string ending
-    609
-    610	02C5  C3							     ret						    +
-    611				     ;return function value
-    612	02C6								     endp						    +
-    613				     ;proc's ending
-    614
-    615				     ;------------------------------------------------------------------------------
-    616
-    617				     ;------------------------------------------------------------------------------
-    618				     ; Draw frame with size: len, height
-    619				     ; Entry:		     SI	= data string address
-    620				     ;				     DH	= frame	height
-    621				     ;				     DL	= frame	len
-    622				     ; Exit:		     None
-    623				     ; Destroyed:    BX, CX, DI
-    624				     ;------------------------------------------------------------------------------
-    625
-    626	02C6			     DrawFrame	     proc
-    627
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 12
-resident.asm
-
-
-
-    628	02C6  A0 0004r					     mov al, y_start							    +
-    629				     ;al = y_start
-    630	02C9  D0 E0					     shl al, 1								    +
-    631				     ;al *= 2
-    632	02CB  BD 0050					     mov bp, window_len							    +
-    633				     ;bp = 80
-    634	02CE  52					     push dx								    +
-    635				     ;save size	of frame in stack
-    636	02CF  F7 E5					     mul bp								    +
-    637				     ;ax = 2 * y_start * 80
-    638	02D1  5A					     pop dx								    +
-    639				     ;return size of frame from	stack to dx
-    640	02D2  8B F8					     mov di, ax								    +
-    641				     ;di = ax
-    642	02D4  A0 0003r					     mov al, x_start							    +
-    643				     ;ax = x_start
-    644	02D7  D0 E0					     shl al, 1								    +
-    645				     ;ax *= 2
-    646	02D9  32 E4					     xor ah, ah								    +
-    647				     ;ah = 0
-    648	02DB  03 F8					     add di, ax								    +
-    649				     ;di += 2 *	x_start
-    650	02DD  E8 001E					     call PrintString							    +
-    651				     ;print string
-    652
-    653	02E0  8A CE					     mov cl, dh								    +
-    654				     ;loop on length of	frame string
-    655	02E2  32 ED					     xor ch, ch								    +
-    656				     ;ch = 0
-    657	02E4  83 E9 02					     sub cx, 2								    +
-    658				     ;without first and	lsat symbols of	string
-    659	02E7						     cycle1:								    +
-    660				     ;<--------------------------|
-    661	02E7  81 C7 00A0					     add di, window_len	* 2					    +
-    662				     ;di += window_len * 2	     |
-    663	02EB  E8 0010						     call PrintString						    +
-    664				     ;print string			     |
-    665	02EE  83 EE 03						     sub si, 3							    +
-    666				     ;si -= 3					     |
-    667	02F1  E2 F4					     loop cycle1							    +
-    668				     ;---------------------------|
-    669	02F3  83 C6 03					     add si, 3								    +
-    670				     ;si += 3
-    671
-    672	02F6  81 C7 00A0				     add di, window_len	* 2						    +
-    673				     ;di += window_len * 2 (next line)
-    674	02FA  E8 0001					     call PrintString							    +
-    675				     ;print string
-    676
-    677	02FD  C3					     ret								    +
-    678				     ;return function value
-    679	02FE						     endp								    +
-    680				     ;proc's ending
-    681
-    682				     ;------------------------------------------------------------------------------
-    683
-    684				     ;------------------------------------------------------------------------------
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 13
-resident.asm
-
-
-
-    685				     ; Draws string to console in format: s1s2....s2s3
-    686				     ; Entry:		     SI	= string address
-    687				     ;				     DL	= string len
-    688				     ; Exit:		     None
-    689				     ; Destroyed:    AX, BX, CX, SI
-    690				     ;------------------------------------------------------------------------------
-    691
-    692	02FE			     PrintString     proc
-    693
-    694	02FE  8A 26 0002r				     mov ah, frame_color						    +
-    695				     ;set symbols color
-    696
-    697	0302  AC					     lodsb								    +
-    698				     ;mov al, ds:[si]
-    699	0303  AB					     stosw								    +
-    700				     ;mov es:[di], ax /	add di,	2
-    701
-    702	0304  51					     push cx								    +
-    703				     ;save prev	loop cnt
-    704	0305  8A CA					     mov cl, dl								    +
-    705				     ;counter =	dl
-    706	0307  80 E9 02					     sub cl, 2								    +
-    707				     ;without top and bottom line
-    708	030A  8A 04					     mov al, [si]							    +
-    709				     ;al = [si]
-    710	030C						     cycle:								    +
-    711				     ;<------------------------------|
-    712	030C  AB						     stosw							    +
-    713				     ;mov es:[di], ax /	add di,	2    |
-    714	030D  E2 FD					     loop cycle								    +
-    715				     ;-------------------------------|
-    716	030F  46					     inc si								    +
-    717				     ;bx++
-    718	0310  59					     pop cx								    +
-    719				     ;return prev loop cnt
-    720
-    721	0311  AC					     lodsb								    +
-    722				     ;mov al, ds:[si]
-    723	0312  AB					     stosw								    +
-    724				     ;mov es:[di], ax /	add di,	2
-    725
-    726	0313  8A DA					     mov bl, dl								    +
-    727				     ;bl = dl
-    728	0315  32 FF					     xor bh, bh								    +
-    729				     ;bh = 0
-    730	0317  D1 E3					     shl bx, 1								    +
-    731				     ;bx *= 2
-    732	0319  2B FB					     sub di, bx								    +
-    733				     ;set di to	line beginning
-    734
-    735	031B  C3					     ret								    +
-    736				     ;return function value
-    737	031C						     endp								    +
-    738				     ;proc's ending
-    739
-    740				     ;------------------------------------------------------------------------------
-    741
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 14
-resident.asm
-
-
-
-    742	031C			     .data
-    743	0000  13		     len			     db	19							    +
-    744				     ;frame row	length
-    745	0001  07		     height			     db	7							    +
-    746				     ;frame column height
-    747	0002  4E		     frame_color	     db	4eh								    +
-    748				     ;frame element color
-    749
-    750	0003  00		     x_start			     db	0							    +
-    751				     ;x	frame start position
-    752	0004  00		     y_start			     db	0							    +
-    753				     ;y	frame start position
-    754	0005  00		     y_string			     db	0							    +
-    755				     ;y	string start position
-    756	0006  00		     str_data_pos	     db	0								    +
-    757				     ;cmd line position	of string
-    758
-    759	0007  C9 CD BB BA 20 BA	C8+  DoubleFrameString	     db	'ÉÍ»º ºÈÍ¼'
-    760	      CD BC
-    761
-    762	0010  61 78 20 30 30 30	30+  AXString			     db	"ax 0000$"
-    763	      24
-    764	0018  62 78 20 30 30 30	30+  BXString			     db	"bx 0000$"
-    765	      24
-    766	0020  63 78 20 30 30 30	30+  CXString			     db	"cx 0000$"
-    767	      24
-    768	0028  64 78 20 30 30 30	30+  DXString			     db	"dx 0000$"
-    769	      24
-    770
-    771	0030  90		     print_ax			     db	090h
-    772	0031  93		     print_bx			     db	093h
-    773	0032  91		     print_cx			     db	091h
-    774	0033  92		     print_dx			     db	092h
-    775
-    776	0034			     EOP:
-    777				     end     Start										    +
-    778				     ;prog's ending
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 15
+    571				     ;cmd line position	of string
+    572	      =0008		     reg_in_frame	     equ 8								    +
+    573				     ;amount of	registers in frame
+    574
+    575	02AF  C9 CD BB BA 20 BA	C8+  DoubleFrameString	     db	'ÉÍ»º ºÈÍ¼'
+    576	      CD BC
+    577
+    578	02B8  61 78 20 24	     AXString			     db	"ax $"
+    579	02BC  62 78 20 24	     BXString			     db	"bx $"
+    580	02C0  63 78 20 24	     CXString			     db	"cx $"
+    581	02C4  64 78 20 24	     DXString			     db	"dx $"
+    582	02C8  73 69 20 24	     SIString			     db	"si $"
+    583	02CC  64 69 20 24	     DIString			     db	"di $"
+    584	02D0  64 73 20 24	     DSString			     db	"ds $"
+    585	02D4  65 73 20 24	     ESString			     db	"es $"
+    586
+    587	02D8			     EOP:
+    588				     end     Start										    +
+    589				     ;prog's ending
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 12
 Symbol Table
 
 
@@ -854,15 +650,15 @@ Symbol Table
 
 Symbol Name			  Type	 Value
 
-??DATE				  Text	 "02/24/25"
+??DATE				  Text	 "02/25/25"
 ??FILENAME			  Text	 "resident"
-??TIME				  Text	 "10:02:36"
+??TIME				  Text	 "02:44:33"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @CODE				  Text	 DGROUP
 @CODESIZE			  Text	 0
 @CPU				  Text	 0101H
-@CURSEG				  Text	 _DATA
+@CURSEG				  Text	 _TEXT
 @DATA				  Text	 DGROUP
 @DATASIZE			  Text	 0
 @FILENAME			  Text	 RESIDENT
@@ -870,71 +666,61 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
-ATOH				  Near	 DGROUP:0217
-ATOI				  Near	 DGROUP:0242
-AXSTRING			  Byte	 DGROUP:0010
-BOTH				  Near	 DGROUP:0239
-BOTH_PRINT_REG			  Near	 DGROUP:0205
-BXSTRING			  Byte	 DGROUP:0018
-CALCPARAM			  Near	 DGROUP:0267
-CMD_LINE_ADD			  Number 0081
-CURREG				  Byte	 DGROUP:01E8
-CXSTRING			  Byte	 DGROUP:0020
-CYCLE				  Near	 DGROUP:030C
-CYCLE1				  Near	 DGROUP:02E7
-DIVISION			  Near	 DGROUP:01F5
-DOUBLEFRAMESTRING		  Byte	 DGROUP:0007
-DRAWFRAME			  Near	 DGROUP:02C6
-DRAWSTRING			  Near	 DGROUP:01A3
-DXSTRING			  Byte	 DGROUP:0028
-END_ATOH			  Near	 DGROUP:0241
-END_ATOI			  Near	 DGROUP:0266
-END_PRINT_STRING		  Near	 DGROUP:02C5
-END_STR_LEN			  Near	 DGROUP:02BC
-EOP				  Near	 DGROUP:0034
-EVALSHIFT			  Near	 DGROUP:0285
-FRAME_COLOR			  Byte	 DGROUP:0002
-GET_HEX				  Near	 DGROUP:0220
-GET_SYMBOL			  Near	 DGROUP:024B
-HEIGHT				  Byte	 DGROUP:0001
-LEN				  Byte	 DGROUP:0000
-LETTER				  Near	 DGROUP:0202
-MAINBORDER			  Near	 DGROUP:0170
-NEW09H				  Near	 DGROUP:0130
-NO_SIGN				  Near	 DGROUP:0236
-OLD09OFS			  Word	 DGROUP:016C
-OLD09SEG			  Word	 DGROUP:016E
-OUTAX				  Near	 DGROUP:01F3
-PRINTINSIDESTRING		  Near	 DGROUP:02BD
-PRINTSTRING			  Near	 DGROUP:02FE
-PRINT_AX			  Byte	 DGROUP:0030
-Turbo Assembler	 Version 4.1	    02/24/25 10:02:37	    Page 16
+ALL_REGISTERS			  Near	 DGROUP:01E4
+AXSTRING			  Byte	 DGROUP:02B8
+BXSTRING			  Byte	 DGROUP:02BC
+CALCPARAM			  Near	 DGROUP:01ED
+CXSTRING			  Byte	 DGROUP:02C0
+CYCLE				  Near	 DGROUP:0298
+CYCLE1				  Near	 DGROUP:0273
+DIGIT				  Near	 DGROUP:018A
+DISTRING			  Byte	 DGROUP:02CC
+DOUBLEFRAMESTRING		  Byte	 DGROUP:02AF
+DRAWFRAME			  Near	 DGROUP:0252
+DRAWSTRING			  Near	 DGROUP:01CB
+DSSTRING			  Byte	 DGROUP:02D0
+DXSTRING			  Byte	 DGROUP:02C4
+ENDING				  Near	 DGROUP:018F
+END_STR_LEN			  Near	 DGROUP:0251
+EOP				  Near	 DGROUP:02D8
+ESSTRING			  Byte	 DGROUP:02D4
+EVALSHIFT			  Near	 DGROUP:021A
+FRAME_COLOR			  Byte	 DGROUP:02AA
+HALF				  Near	 DGROUP:0195
+HEIGHT				  Byte	 DGROUP:02A9
+HTOA				  Near	 DGROUP:017F
+LEN				  Byte	 DGROUP:02A8
+LETTER				  Near	 DGROUP:0185
+MAINBORDER			  Near	 DGROUP:0162
+NEW09H				  Near	 DGROUP:0132
+OLD09OFS			  Word	 DGROUP:015E
+OLD09SEG			  Word	 DGROUP:0160
+ONEREGISTER			  Near	 DGROUP:01B7
+PRINTSTRING			  Near	 DGROUP:028A
+REGISTER_NAME			  Near	 DGROUP:01BC
+REGVAL				  Near	 DGROUP:0190
+REG_IN_FRAME			  Number 0008
+SISTRING			  Byte	 DGROUP:02C8
+SKIP				  Near	 DGROUP:0145
+START				  Near	 DGROUP:0100
+STRLEN				  Near	 DGROUP:0247
+Turbo Assembler	 Version 4.1	    02/25/25 02:44:33	    Page 13
 Symbol Table
 
 
 
-PRINT_BX			  Byte	 DGROUP:0031
-PRINT_CX			  Byte	 DGROUP:0032
-PRINT_DX			  Byte	 DGROUP:0033
-PRINT_STRING			  Near	 DGROUP:02BD
-REG_IN_FRAME			  Number 0004
-REG_STR				  Near	 DGROUP:01A6
-SETSTYLE			  Near	 DGROUP:0194
-SKIP				  Near	 DGROUP:0154
-START				  Near	 DGROUP:0100
-STRLEN				  Near	 DGROUP:02B2
-STR_DATA_POS			  Byte	 DGROUP:0006
-STR_LEN				  Near	 DGROUP:02B2
+STR_DATA_POS			  Byte	 DGROUP:02AE
+STR_LEN				  Near	 DGROUP:0247
 VIDEO_SEGMENT			  Number B800
 WINDOW_HEIGHT			  Number 0019
 WINDOW_LEN			  Number 0050
-X_START				  Byte	 DGROUP:0003
-Y_START				  Byte	 DGROUP:0004
-Y_STRING			  Byte	 DGROUP:0005
+X_START				  Byte	 DGROUP:02AB
+Y_START				  Byte	 DGROUP:02AC
+Y_STRING			  Byte	 DGROUP:02AD
 
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
-  _DATA				  16  0034 Word	  Public  DATA
-  _TEXT				  16  031C Word	  Public  CODE
+  _DATA				  16  0000 Word	  Public  DATA
+  _TEXT				  16  02D8 Word	  Public  CODE
 

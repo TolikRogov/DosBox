@@ -222,7 +222,6 @@ y_start 			db 0									;y frame start position
 y_string 			db 0									;y string start position
 str_data_pos 		db 0									;cmd line position of string
 reg_in_frame		equ 4									;amount of registers in frame
-loop_cnt			dw 0
 
 DoubleFrameString 	db '╔═╗║ ║╚═╝'
 
