@@ -1,534 +1,600 @@
-;------------------------------------------------------------------------------------------------------------------
-;This program is the third version of resident and it draw frame if key == ESC
-;------------------------------------------------------------------------------------------------------------------
-;                                        program
+;------------------------------------------------------------------------------
+;				It is impossible to debug! SO...SI...DI...SS
+;			@Rogov Anatoliy 25.02.2025 "When will I delete DOSBox?"
+;------------------------------------------------------------------------------
 
-.model tiny   ;64 kilobytes in RAM, address == 16 bit == 2 bytes (because: sizeof (register) == 2 bytes)
+video_segment 		= 0b800h							;video segment
+window_len 			= 80								;window row length
+window_height 		= 25								;window column height
 
-;--------------------------------------------------------------------------------------------------------------
-;										main program
-;--------------------------------------------------------------------------------------------------------------
+.model tiny												;set 64 Kb model
+.code													;define code block
+org 100h												;prog's beginning ram block
 
-.code         ;begin program
-org 100h      ;start == 256:   jmp start == jmp 256 != jmp 0 (because address [0;255] in program segment in DOS for PSP)
-start:
-	xor ax, ax
-	mov es, ax       ;es = 0
+Start:
+	;==============================================================================================
+	mov cx, 0ffffh
+	inf_loop:
+		mov ax, 1111h
+		mov bx, 2222h
+		mov cx, 3333h
+		mov dx, 4444h
+		in al, 60h
+	loop inf_loop
+	mov ax, 4c00h
+	int 21h												;31 function of 21 interrupt
 
-	mov bx, 0009h*4  ;bx = address on 9th interrupt
-	int 09h          ;call old 9th interrupt
+;------------------------------------------------------------------------------
+; New procedural handler of 08h interrupt - timer
+; Entry: 		None
+; Exit: 		None
+; Destroyed:	None
+;------------------------------------------------------------------------------
 
-	mov ax, es:[bx]
-	mov address_of_old_9th_interrupt, ax  ;save address of old 9th interrupt
+New08h 	proc
 
-	mov ax, es:[bx+2]
-	mov segment_of_old_9th_interrupt, ax  ;save segment of old 9th interrupt
+	push ax bx cx dx si di ds es bp						;save all registers
+	push cs												;cs in stack
+	pop ds												;ds = cs
 
-	cli     ;CPU cannot work with interrupts
-
-	mov es:[bx], offset new_9th_interrupt    ;es:[bx] = address on new 9th interrupt
-
-	push cs
-	pop ax     ;ax = cs (segment of our code and code with new 9th interrupt)
-
-	mov es:[bx+2], ax    ;es:[bx+2] in table with interrupts = cs (segment address, where is code with new 9th interrupt)
-
-	sti       ;CPU can work with interrupts
-
-	int 09h   ;call new 9th interrupt
-
-	mov ax, 3100h       ;complete program, return 00h and save code in RAM from segment address in PSP in quantity = dx * 16 bytes
-
-	mov dx, offset end_of_program
-	shr dx, 4
-	inc dx               ;dx = (address of program's end)/16 + 1
-
-	int 21h              ;call 21th interrupt  (end work of CPU)
-;--------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-;--------------------------------------------------------------------------------------------------------------
-;											 new_9th_interrupt
-;Has code for new 9th interrupt, that can print key in video memory and after calls old 9th interrupt
-;Entry: None
-;
-;Exit:  None
-;
-;Destr: None
-;--------------------------------------------------------------------------------------------------------------
-
-new_9th_interrupt proc
-
-	push ax bx cx dx si di ds es
-	push cs
-	pop ds     ;ds = cs
-
-	in al, 60h   ;al = scan code of last key from 60th port
-	cmp al, 02d
-	jne check_for_delete_frame       ;if (al != scan_code_of_hot_key): goto check_for_delete_frame
-		call sosi
-		jmp do_old_9th_interrupt       ;end print frame
-	check_for_delete_frame:
-
-	do_old_9th_interrupt:           ;skip new_9th_interrupt
-
-	pop es ds di si dx cx bx ax
-	db 0eah
-	address_of_old_9th_interrupt dw 0000h
-	segment_of_old_9th_interrupt dw 0000h    ;jmp segment_of_old_9th_interrupt:[address_of_old_9th_interrupt]    (call old 9th interrupt)
+	cmp Active, 1										;if (Active == 1) zf = 1
+	jne skip_activision									;if (zf != 1) goto skip_activision--|
+		call MainBorder									;Main Border function				|
+		jmp old_08h										;goto old_08h ----------------------|---|
+	skip_activision:									;<----------------------------------|	|
+														;										|
+	old_08h:											;<--------------------------------------|
+	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
+	db 0eah												;jump to old procedural handler of 09h interrupt
+	old08ofs dw 0000h									;previous offset
+	old08seg dw 0000h									;in that segment
 
 	endp
-;--------------------------------------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
+; New procedural handler of 09h interrupt
+; Entry: 		None
+; Exit: 		None
+; Destroyed:	None
+;------------------------------------------------------------------------------
 
+New09h 	proc
 
+	push ax bx cx dx si di ds es bp						;save all registers
+	push cs												;cs in stack
+	pop ds												;ds = cs
 
+	in al, 60h											;al = scan code from 60h port
+	cmp al, 58h											;if (al == F12) zf = 1
+	jne skip_open										;if (zf != 1) goto skip_open ---|
+		call MainBorder									;Main Border function			|
+		jmp old											;got old ---------------------------|
+	skip_open:											;<------------------------------|	|
+														;									|
+	cmp al, 0dh											;if (al == '=') zf = 1				|
+	jne skip_close										;if (zf != 1) goto skip_close --|	|
+		;call CloseFrame									;Close Frame function			|	|
+		jmp old											;goto old ----------------------|	|
+	skip_close:											;<------------------------------|	|
+														;									|
+	old:												;<----------------------------------|
 
+	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
+	db 0eah												;jump to old procedural handler of 09h interrupt
+	old09ofs dw 0000h									;previous offset
+	old09seg dw 0000h									;in that segment
 
-
-
-
-
-
-;--------------------------------------------------------------------------------------------------------------
-;											 count_left_high_point
-;Count coordinates of left high point of frame
-;
-;Entry: x_size = horizontal size of frame
-;		y_size = vertical   size of frame
-;
-;Exit:  di = address in video memory for left high of frame
-;
-;Destr: ax = calculations
-;		bx = logical  left coordinate
-;       cx = logical  high coordinate
-;       si = physical left address
-;       di = physical high address and address of point in video memory
-;--------------------------------------------------------------------------------------------------------------
-
-sosi proc
-
-	mov di, 0b800h     ;video segment
-	mov es, di         ;register es for segment address of video memory  (es != const    es == reg)
-
-	call count_left_high_point
-
-	push di   ;save di for print registers
-
-	mov ah, color     ;ah = color
-
-	mov si, offset frame_style  ;si = address on style of frame
-
-	mov cx, x_size
-	sub cx, 0002d     ;cx = x_size - 2 = len of str with recurring symbol
-
-	call print_frame
-
-    mov si, offset list_of_registers    ;si = address on list of registers
-
-	pop di
-	add di, 0080d * 0002d + 0002d * 0002d  ;di == address of beginning
-
-	mov cx, quantity_of_registers   ;cx = how many registers program must print
-
-	mov bx,  sp
-	add bx, 0002d        ;bx = sp + quantity_of_registers * 0002d   - by this address in stack on ax. After on bx, cx, dx, ..., es
-
-	print_next_register:
-	call print_list_of_reg
-
-	sub bx, 0002d                 ;address in stack for value next register
-
-	loop print_next_register      ;while (cx--) {print_next_register ();s}
-
-	ret
 	endp
-;--------------------------------------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
+; Close frame
+; Entry:		Active - frame status: 1 - opened, 0 - closed
+; Exit:			None
+; Destroyed:	AX, Active
+;------------------------------------------------------------------------------
 
+CloseFrame	proc
 
+	cmp Active, 1										;if (Active == 1) zf = 1
+	jne closing											;if (zf != 1) goto closing
 
+	push ax bx cx dx bp si es
+	call CalcParam
+	mov dh, height
+	mov dl, len
 
+	mov bx, video_segment
+	mov es, bx
 
+	mov si, di
+	xor cx, cx
+	mov cl, dh
+	outside_close:
+		xor ax, ax
+		mov al, dh
+		sub al, cl
+		push dx
+		mul dl
+		pop dx
 
+		push cx
 
+		xor cx, cx
+		mov cl, dl
+		xor bp, bp
 
+		push si
+		inside_close:
+			;bp = &Buffer + (dh - cl) * dl + (dl - cx)
+			push dx
+			xor dh, dh
+			mov bp, dx
+			pop dx
+			sub bp, cx
+			;shl bp, 2
+			add bp, ax
+			add bp, offset Buffer
+			mov bx, [bp]
+			mov es:[si], bx
+			add si, 2
+		loop inside_close
 
-
-
-
-
-
-
-;--------------------------------------------------------------------------------------------------------------
-;											 count_left_high_point
-;Count coordinates of left high point of frame
-;
-;Entry: x_size = horizontal size of frame
-;		y_size = vertical   size of frame
-;
-;Exit:  di = address in video memory for left high of frame
-;
-;Destr: ax = calculations
-;		bx = logical  left coordinate
-;       cx = logical  high coordinate
-;       si = physical left address
-;       di = physical high address and address of point in video memory
-;--------------------------------------------------------------------------------------------------------------
-
-count_left_high_point proc
-
-	;center point:   0080d*(0008d)*0002d + 0002d*(0038d)
-
-	mov ax, x_size
-	shr ax, 1
-	mov bx, x_center
-	sub bx, ax       ;bx = 0038d - x_size / 2
-
-	mov ax, 0002d
-	mul bx
-	mov	si, ax       ;si = 0002d * bx = 0002d * (0038d - x_size / 2)   - left point
-
-	mov ax, y_size
-	shr ax, 1
-	mov cx, y_center
-	sub cx, ax        ;cx = 0008d - y_size / 2
-
-	mov ax, 0160d
-	mul cx
-	mov di, ax        ;di = cx * 0160d = 0002d * 0080d * (0008d - y_size / 2)   - high point
-
-	add di, si        ;di = 0002d*0080d*(0008d - y_size / 2) + 0002d*(0038d - x_size / 2) - left high point in Video memory
-
-	ret
-	endp
-;--------------------------------------------------------------------------------------------------------------
-
-;--------------------------------------------------------------------------------------------------------------
-;											 print_frame
-;Draws frame x_size * y_size in frame_style and color
-;
-;Entry: ah = color
-;		cx = x_size - 2 = len of str with recurring symbol
-;		si = address on line with style / on the first set of symbols (for the first line)
-;		di = address of point in video memory (in video segment)
-;		es = segment address of video memory
-;
-;Exit: None
-;
-;Destr: dx = index of lines
-;		si = address on different sets of symbols from line with style
-;--------------------------------------------------------------------------------------------------------------
-
-print_frame proc
-	mov dx, y_size        ;dx - index of line  (max value = y_size, step = -1, min value = 0)
-
-	call print_line       ;draw the first line of frame with the first set of symbols
-	dec dx
-
-	print_new_line:       ;for (bx = y_size - 1; bx > 1; bx--) {printf ("%s\n", middle_line);}
-
-		push si           ;save address on the second set of symbols (for the middle lines)
-		call print_line   ;draw the middle line
-		dec dx
 		pop si
+		add si, 2 * window_len
+
+		pop cx
+	loop outside_close
+
+	pop es si bp dx cx bx ax
+	mov Active, 0										;Active = 0
 
-		cmp dx, 1d
-		jnz print_new_line
+	closing:
+	ret													;return function value
+	endp												;proc's ending
 
-	add si, 3            ;address on the third set of symbols (for the last line)
+;------------------------------------------------------------------------------
 
-	call print_line      ;draw the last line of frame
-	dec dx
+;------------------------------------------------------------------------------
+; Main program to view frame
+; Entry:		None
+; Exit:			None
+; Destroyed:	AX, ES, DX, DI
+;------------------------------------------------------------------------------
 
-	ret
-	endp
-;--------------------------------------------------------------------------------------------------------------
+MainBorder	proc
 
-;--------------------------------------------------------------------------------------------------------------
-;											 print_line
-;Draws one line with someone set of symbols
-
-;Entry: cx = x_size - 2 = len of str with recurring symbol
-;		ah = color
-;		di = address of point in video memory (in video segment)
-;		si = address on set of symbols
-;
-;Exit:  None
-;
-;Destr: al = symbol
-;		di = shifting address of point in video memory (in video segment)
-;		si = shifting address on set of symbols
-;--------------------------------------------------------------------------------------------------------------
-
-print_line proc
-
-	push cx      ;save len of str with recurring symbol
-
-	lodsb				;mov al, ds:[si]    ;al = the first symbol in set
-						;inc si
-
-	stosw				;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-						;add di, 2
-
-	lodsb				;mov al, ds:[si]    ;al = the second symbol in set
-						;inc si
-
-	next_symbol:
-
-	stosw		;mov word ptr es:[di], ax
-				;add di, 2
-
-	loop next_symbol   ; while (cx--) {printf ("%c", ax);}    //ax = second symbol with color
-
-	lodsb		;mov al, ds:[si]     ;al = the third symbol in set
-				;inc si
-
-	stosw		;mov word ptr es:[di], ax
-				;add di, 2
-
-	pop cx
-
-	add di, 80d * 2d
-	sub di, x_size
-	sub di, x_size      ;count new address of new line in frame <==> '\n'
-
-	ret
-	endp
-;--------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-;--------------------------------------------------------------------------------------------------------------
-;											 print_list_of_reg
-;Print value of register in frame
-;
-;Entry: ah = color
-;		di = address of point in video memory (in video segment)
-;		si = address on list of registers
-;       bx = address in stack for value of register
-;       ss = segment address of stack
-;       es = segment address of video memory
-;
-;Exit:  di = di + 0080d*0002d ('\n')
-;       si = address on new name of register
-;
-;Destr: al = symbol
-;		di = shifting address of point in video memory (in video segment)
-;		si = shifting address on set of symbols in names of all registers
-;--------------------------------------------------------------------------------------------------------------
-
-print_list_of_reg proc
-
-	push di
-	push cx     ;old cx = index_for_registers_in_list, new cx = index_for_symbols_in_name => save cx
-
-	mov cx, quantity_symbols_in_name_of_register
-
-	next_symbol_in_name_of_register:
-
-	lodsb							;mov al, ds:[si]    ;al = the symbol in register's name from list of registers
-									;inc si
-
-	stosw							;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-									;add di, 2
-
-	loop next_symbol_in_name_of_register
-
-	;-----------------------------------------------------------------------------------------------------------
-	;print("%c%c = ", name_register[0], name_register[1]);
-
-	call print_value_reg  ;print value of register
-
-	pop cx
-
-	pop di
-	add di, 0080d*0002d  ;di = di + 0080d*0002d ('\n')
-
-	ret
-	endp
-;--------------------------------------------------------------------------------------------------------------
-
-;--------------------------------------------------------------------------------------------------------------
-;											 print_value_reg
-;Print value of register in frame
-;
-;Entry: ah = color
-;		bx = address in stack for value of register
-;		ss = segment address of stack
-;		di = address of point in video memory (in video segment)
-;       es = segment address of video memory
-;
-;Exit:  None
-;
-;Destr: al = symbol
-;		di = shifting address of point in video memory (in video segment)
-;
-;--------------------------------------------------------------------------------------------------------------
-print_value_reg proc                                      ;register =  |_ _ _ _ | _ _ _ _ | _ _ _ _ | _ _ _ _|
-;																	   |  high     lou    |  high      lou   |
-;																	   |                  |                  |
-;                                                                      |____high half_____|____lou half______|
-
-	mov al, ss:[bx]    ;al = lou half of register
-
-	shr al, 4          ;high half in al
-
-	call translate_value_in_al_to_ascii     ;al = ascii of print_number
-
-	stosw			;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-					;add di, 2
-
-	;------------------------------------------------------------------------------------------------------------------------
-
-	mov al, ss:[bx]    ;al = lou half of register
-
-	and al, 0Fh        ;lou half in al
-
-	call translate_value_in_al_to_ascii    ;al = ascii of print_number
-
-	stosw			;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-					;add di, 2
-
-	;------------------------------------------------------------------------------------------------------------------------
-
-	mov al, ss:[bx+1]    ;al = high half of register
-
-	shr al, 4            ;high half in al
-
-	call translate_value_in_al_to_ascii       ;al = ascii of print_number
-
-	stosw			;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-					;add di, 2
-
-	;------------------------------------------------------------------------------------------------------------------------
-
-	mov al, ss:[bx+1]    ;al = high half of register
-
-	and al, 0Fh          ;lou half in al
-
-	call translate_value_in_al_to_ascii       ;al = ascii of print_number
-
-	stosw			;mov word ptr es:[di], ax   ;put symbol and his color (ax) in video memory by address = es[di]
-					;add di, 2
-
-	ret
-	endp
-
-;--------------------------------------------------------------------------------------------------------------
-
-;--------------------------------------------------------------------------------------------------------------
-;											 translate_value_in_al_to_ascii
-;Take value from al and translate it in symbol in ascii (For example: 1 -> '1', 10 -> 'a')
-;
-;Entry: al = value of print_number
-;
-;Exit:  al = ascii of print_number
-;
-;Destr: al = number -> ascii
-;
-;--------------------------------------------------------------------------------------------------------------
-translate_value_in_al_to_ascii proc
-
-	cmp al, 0010d
-	js al_is_number
-
-	;al_is_latter:
-	sub al, 0010d
-	add al, 'a'
-	ret
-
-	al_is_number:
-	add al, '0'
-	ret
-
-	endp
-
-;--------------------------------------------------------------------------------------------------------------
-
-;--------------------------------------------------------------------------------------------------------------
-;                                      variables
-.data
-color db 01011011b
-	    ;bBBBFFFF	b == blink;  B == back ground;  F == for ground
-	    ; rgbIRGB	r/R == red;  g/G == green;  b/B == blue;  I == increase
-
-scan_code_of_hot_key_for_print_frame db 02d    ;hot key for print frame  == '1'
-scan_code_of_hot_key_for_delete_frame db 03d   ;hot key for delete frame == '2'
-
-x_size dw 0036d   ;horizontal sizes of frame
-y_size dw 0014d   ;vertical   sizes of frame
-
-
-;center point:   0080d*(0008d)*0002d + 0002d*(0038d)
-x_center dw 0038d
-y_center dw 0010d
-
-frame_style db '         '
-
-quantity_symbols_in_name_of_register dw 0005d
-quantity_of_registers dw 0008d
-
-list_of_registers db 'ax = bx = cx = dx = si = di = ds = es = '
-
-;--------------------------------------------------------------------------------------------------------------
-
-;--------------------------------------------------------------------------------------------------------------
-end_of_program:
-end start              ;end of asm and address of program's beginning
-
-;list of colors:
-;01011011 = blue symbols on violet background
+	mov di, video_segment								;bx = video segment position
+	mov es, di											;es = bx
+	xor di, di											;di = 0
+
+	call CalcParam										;x_start, y_start, y_string
+	mov ah, frame_color									;ah = 4eh 	| color
+	mov si, offset DoubleFrameString					;si = &style string
+
+	mov dh, height										;dh = height
+	mov dl, len											;dl = len
+
+	cmp Active, 1
+	je skip_memory
+		call RememberToBuffer								;Remember video ram to buffer
+	skip_memory:
+
+	call DrawFrame										;Drawing frame
+	call DrawString										;Drawing string inside frame
+
+	mov Active, 1										;Active = 1
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Save video fragments under the future frame
+; Entry:		DI
+;				DL
+;				DH
+; Exit:
+; Destroyed:
+;------------------------------------------------------------------------------
+
+RememberToBuffer proc
+
+	push ax bx cx dx bp si es
+
+	mov bx, video_segment
+	mov es, bx
+
+	mov si, di
+	xor cx, cx
+	mov cl, dh
+	outside:
+		xor ax, ax
+		mov al, dh
+		sub al, cl
+		push dx
+		mul dl
+		pop dx
+
+		push cx
+
+		xor cx, cx
+		mov cl, dl
+		xor bp, bp
+
+		push si
+		inside:
+			;bp = &Buffer + (dh - cl) * dl + (dl - cx) * 2
+			push dx
+			xor dh, dh
+			mov bp, dx
+			pop dx
+			sub bp, cx
+			add bp, ax
+			shl bp, 1
+			add bp, offset Buffer
+
+			mov bx, es:[si]
+			mov [bp], bx
+			add si, 2
+		loop inside
+
+		pop si
+		add si, 2 * window_len
+
+		pop cx
+	loop outside
+
+	pop es si bp dx cx bx ax
+
+	ret												;return function value
+	endp											;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Convert hex to ascii code
+; Entry:		AL - converted symbol
+; Exit:			AL - result of converting
+; Destroyed:	AL
+;------------------------------------------------------------------------------
+
+htoa	proc
+
+	cmp al, 10											;if (al - 10 < 0) zs = 1
+	jae letter											;if (zs == 0) goto letter --|
+	jb digit											;if (zs == 1) goto digit ---|-|
+														;							| |
+	letter:												;<--------------------------| |
+		add al, 'A' - 10								;al += 'A' - 10				  |
+		jmp ending										;-----------------------------|-|
+	digit:												;<----------------------------|	|
+		add al, '0'										;al += '0'						|
+		jmp ending										;-------------------------------|
+														;							 	|
+	ending:												;<------------------------------|
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Print register value
+; Entry:		BX - right offset on register in stack segment
+; Exit:			None
+; Destroyed:	AL
+;------------------------------------------------------------------------------
+
+RegVal	proc
+
+	push cx												;save cx - amount of symbols in register name
+	push bx												;save bx - right offset of register in stack segment
+	mov cx, 0002h										;cx = 0002h
+
+	half:												;<------------------------------|
+		sub bx, cx										;bx -= cx						|
+		add bx, 2										;bx += 2						|
+														;|----|----|					|
+		mov al, ss:[bx]									; high low | al = low			|
+		shr al, 4										;al /= 16						|
+		call htoa										;hex al to ascii				|
+		stosw											;mov es:[di], ax / add di, 2	|
+														;|----|----|					|
+		mov al, ss:[bx]									; high low | al = high			|
+		and al, 0fh										;al && 00001111h				|
+		call htoa										;hex al to ascii				|
+		stosw											;mov es:[di], ax / add di, 2	|
+	loop half												;-------------------------------|
+
+	pop bx												;return bx
+	pop cx												;return cx
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Print information about one register
+; Entry:		SI - address of string to current register name
+;				DI - place on the screen where will be register value
+; Exit:			None
+; Destroyed:	DI, SI, AL
+;------------------------------------------------------------------------------
+
+OneRegister	proc
+
+	push di												;save di - previous offset on screen
+	push cx												;save cx - loop counter for all registers
+
+	mov cx, 0003h										;cx = 3 | amount of symbols in any register name: 'xx '
+
+	register_name:										;<------------------------------|
+		lodsb											;mov al, ds:[si]				|
+		stosw											;mov es:[di], ax / add di, 2	|
+	loop register_name									;-------------------------------|
+	inc si												;si += 1
+
+	call RegVal											;print register value
+
+	pop cx												;return cx
+	pop di												;return di
+	add di, 0002h * window_len							;di += 80 * 2
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Draw registers inside the frame
+; Entry:		SI - first register name string address
+; Exit:			None
+; Destroyed:	CX, AX, BX
+;------------------------------------------------------------------------------
+
+DrawString	proc
+
+	push bp												;save bp
+	mov bp, offset AXString								;bp = &AXString
+	mov si, bp											;si = bp
+	pop bp												;return bp
+
+	push cx												;save cx
+	mov cx, 0007h										;cx = 0007h | register name len (3) + register value (4)
+	call EvalShift										;calculate first inside string position
+	pop cx												;return cx
+
+	mov cx, reg_in_frame								;cx = 8 	| amount registers in frame
+
+	push ax												;save ax
+	mov bx, sp											;bx = sp
+	xor ax, ax											;ax = 0
+	mov ax, reg_in_frame								;ax = 8
+	shl ax, 1											;ax *= 2
+	add bx, ax											;bx += ax - pointer on ax register in stack
+	pop ax												;return ax
+
+	all_registers:										;<------------------------------|
+		call OneRegister								;Print one register information	|
+		sub bx, 0002h									;bx -= 0002h - next register	|
+	loop all_registers									;-------------------------------|
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Calculate values of variables: x_start, y_start, y_string
+; Entry:		None
+; Exit:			None
+; Destroyed:	AX, BX, DX, BP
+;------------------------------------------------------------------------------
+
+CalcParam	proc
+
+	push ax												;save ax
+	xor ah, ah											;ah = 0
+	mov al, len											;al = len
+	mov dl, height										;dl = height
+	mov x_start, window_len / 2							;x_start = 40
+	shr ax, 1											;ax /= 2
+	sub x_start, al										;x_start -= len / 2
+	pop ax												;return ax
+
+	mov bl, window_height / 2							;bp = 25 / 2
+	mov y_start, bl										;y_start = 25 / 2
+	shr dx, 1											;dx /= 2
+	sub y_start, dl										;y_start -= height / 2
+
+	mov bl, y_start										;bp = y_start
+	inc bl												;bl += 1
+	mov y_string, bl									;y_string = y_start + 1
+
+	xor di, di											;di = 0;
+
+	xor ah, ah											;ah = 0
+	mov al, y_start										;al = y_start
+	shl al, 1											;al *= 2
+	mov bp, window_len									;bp = 80
+	push dx												;save size of frame in stack
+	mul bp												;ax = 2 * y_start * 80
+	pop dx												;return size of frame from stack to dx
+	mov di, ax											;di = ax
+	mov al, x_start										;ax = x_start
+	shl al, 1											;ax *= 2
+	xor ah, ah											;ah = 0
+	add di, ax											;di += 2 * x_start
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Eval shift of frame inside string
+; Entry:		CX = string length
+; Exit:			None
+; Destroyed:	DI, BP, AX, BX
+;------------------------------------------------------------------------------
+
+EvalShift	proc
+
+	push ax bx bp										;save ax bx bp
+
+	;di = y_string * window_len * 2 + (x_start + (cx - len) / 2) * 2
+	mov al, y_string									;al = y_string
+	shl al, 1											;al *= 2
+	xor ah, ah											;ah = 0
+	mov bp, window_len									;bp = 80
+	push dx												;save size of frame in stack
+	mul bp												;ax = 2 * y_start * 80
+	pop dx												;return size of frame from stack to dx≈
+	mov di, ax											;di = ax
+
+	xor ah, ah											;ah = 0
+	xor bh, bh											;bh = 0
+	mov al, x_start										;al = x_start
+	mov bp, offset len									;bp = &len
+	mov bl, len											;bl = len
+	sub bl, cl											;bl -= cl
+	shr bl, 1											;bl = (cx - len) / 2
+	add al, bl											;x_start += (cx - len) / 2
+	shl al, 1											;al *= 2
+	add di, ax											;di += al
+
+	shr di, 1											;di /= 2
+	shl di, 1											;di *= 2
+
+	pop bp bx ax										;return bp bx ax
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Eval string length with '$' terminal symbol
+; Entry: 		SI = data string address
+; Exit:			CX
+; Destroyed:	SI, AL, CX
+;------------------------------------------------------------------------------
+
+StrLen	proc
+
+	str_len:											;<------------------------------|
+		lodsb											;mov al, ds:[si]				|
+		cmp al, '$'										;if (al == '$') zf = 1			|
+		jz end_str_len									;if (zf == 1) goto end_str_len	|
+		add cx, 2										;cx += 2						|
+	loop str_len										;-------------------------------|
+	end_str_len:										;label of str len ending
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Draw frame with size: len, height
+; Entry: 		SI = data string address
+;				DH = frame height
+;				DL = frame len
+; Exit:			None
+; Destroyed:	BX, CX, DI
+;------------------------------------------------------------------------------
+
+DrawFrame	proc
+
+	push ax bx cx dx si di bp							;save ax bx cx dx si di bx
+
+	call PrintString									;print string
+
+	mov cl, dh											;loop on length of frame string
+	xor ch, ch											;ch = 0
+	sub cx, 2											;without first and lsat symbols of string
+	cycle1:												;<--------------------------|
+		add di, window_len * 2							;di += window_len * 2		|
+		call PrintString								;print string				|
+		sub si, 3										;si -= 3					|
+	loop cycle1											;---------------------------|
+	add si, 3											;si += 3
+
+	add di, window_len * 2								;di += window_len * 2 (next line)
+	call PrintString									;print string
+
+	pop bp di si dx cx bx ax							;return bp di si dx cx bx ax
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Draws string to console in format: s1s2....s2s3
+; Entry: 		SI = string address
+;				DL = string len
+; Exit:			None
+; Destroyed:	AX, BX, CX, SI
+;------------------------------------------------------------------------------
+
+PrintString	proc
+
+	mov ah, frame_color									;set symbols color
+
+	lodsb												;mov al, ds:[si]
+	stosw												;mov es:[di], ax / add di, 2
+
+	push cx												;save prev loop cnt
+	xor cx, cx											;cx = 0
+	mov cl, dl											;counter = dl
+	sub cl, 2											;without top and bottom line
+	mov al, [si]										;al = [si]
+	cycle:												;<------------------------------|
+		stosw											;mov es:[di], ax / add di, 2	|
+	loop cycle											;-------------------------------|
+	inc si												;bx++
+	pop cx												;return prev loop cnt
+
+	lodsb												;mov al, ds:[si]
+	stosw												;mov es:[di], ax / add di, 2
+
+	mov bl, dl											;bl = dl
+	xor bh, bh											;bh = 0
+	shl bx, 1											;bx *= 2
+	sub di, bx											;set di to line beginning
+
+	ret													;return function value
+	endp												;proc's ending
+
+;------------------------------------------------------------------------------
+
+len 				db 31								;frame row length
+height 				db 10								;frame column height
+frame_color 		db 4eh								;frame element color
+
+x_start 			db 0								;x frame start position
+y_start 			db 0								;y frame start position
+y_string 			db 0								;y string start position
+reg_in_frame		equ 8								;amount of registers in frame
+Active				db 0								;frame status
+
+DoubleFrameString 	db 0c9h, 0cdh, 0bbh, 0bah, 020h, 0bah, 0c8h, 0cdh, 0bch
+Buffer dw 31 * 10 dup (0)
+
+AXString 			db "ax $"							;registers names
+BXString 			db "bx $"
+CXString 			db "cx $"
+DXString 			db "dx $"
+SIString 			db "si $"
+DIString 			db "di $"
+DSString 			db "ds $"
+ESString 			db "es $"
+
+EOP:
+end 	Start											;prog's ending
