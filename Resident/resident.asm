@@ -106,7 +106,6 @@ New09h 	proc
 	skip_close:											;<------------------------------|	|
 														;									|
 	old:												;<----------------------------------|
-
 	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
 	db 0eah												;jump to old procedural handler of 09h interrupt
 	old09ofs dw 0000h									;previous offset
@@ -389,15 +388,14 @@ CalcParam	proc
 	xor ah, ah											;ah = 0
 	mov al, len											;al = len
 	mov dl, height										;dl = height
-	mov x_start, window_len / 2							;x_start = 40
-	shr ax, 1											;ax /= 2
-	sub x_start, al										;x_start -= len / 2
+	mov x_start, window_len								;x_start = 80
+	sub x_start, al										;x_start -= len
 	pop ax												;return ax
 
-	mov bl, window_height / 2							;bp = 25 / 2
-	mov y_start, bl										;y_start = 25 / 2
-	shr dx, 1											;dx /= 2
-	sub y_start, dl										;y_start -= height / 2
+	mov bl, window_height								;bp = 25
+	mov y_start, bl										;y_start = 25
+	sub y_start, dl										;y_start -= height
+	sub y_start, 1										;y_start -= 1
 
 	mov bl, y_start										;bp = y_start
 	inc bl												;bl += 1

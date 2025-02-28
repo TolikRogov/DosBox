@@ -304,7 +304,7 @@ EvalShift	proc
 			mov bp, window_len								;bp = 80
 			push dx											;save size of frame in stack
 			mul bp											;ax = 2 * y_start * 80
-			pop dx											;return size of frame from stack to dx�
+			pop dx											;return size of frame from stack to dx?
 			mov di, ax										;di = ax
 
 			xor ah, ah										;ah = 0
@@ -467,14 +467,14 @@ y_string 			db 0									;y string start position
 str_data_pos 		db 0									;cmd line position of string
 
 frame_style 		db 1									;frame style
-DoubleFrameString 	db '�ͻ� ��ͼ'
-SingleFrameString	db '�Ŀ� ����'
+DoubleFrameString 	db '??? ???'
+SingleFrameString	db '??? ????'
 HeartFrameString	db ' '
 DebugFrameString	db '123456789'
-MathFrameString		db '���� ����'
+MathFrameString		db '???? ????'
 PatriotFrameString	db 'RTRT TRTR'
-PointedFrameString	db '���� ����'
-OutsideFrameString	db '��ٴ ÿ��'
+PointedFrameString	db '???? ????'
+OutsideFrameString	db '??? �??'
 InsideString 		db "Saint Valentine's Day!$"
 
 end 	Start												;prog's ending
