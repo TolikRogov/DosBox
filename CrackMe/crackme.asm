@@ -10,34 +10,84 @@ org 100h												;offset of commands in code segment
 Start:													;Start of program
 	;==========================================================================
 	mov ax, 0900h										;9h function of 21 interrupt | outs the string by dx address
-	mov dx, offset DebugString							;dx = &DebugString
+	mov dx, offset StartString							;dx = &StartString
 	int 21h												;call 21 interrupt
 	;==========================================================================
 
-waitForKey:												;<------------------------------------------------------------------------------|
-	mov ah, 01h											;1h function of 16 interrupt | if key is ready ax = keycode, set zf flag		 |
-	int 16h												;call 16 interrupt																|
-	jnz gotKey											;if zf flag is set -> goto gotKey ---|											 |
-	jmp waitForKey										;goto waitForKey -------------------|-------------------------------------------|
-														;									|
-gotKey:													;<----------------------------------|
-	mov dx, ax											;dx = keycode
-	mov ax, 0200h										;2h function of 21 interrupt | outs symbol
-	int 21h												;call 21 interrupt
+	mov si, offset Buffer								;si = &Buffer
+	call InputSymbolsToBuffer							;Inputting symbols while it is not CR
 
-	mov ah, 00h											;0h function of 16 interrupt | remove keystroke from the buffer
-	int 16h												;call 16 interrupt
+	mov si, offset Buffer								;si = &Buffer
+	mov di, offset Password								;di = &Password
+	mov cx, buffer_size									;cx = buffer_size
+	call Authentication									;check password
 
 	mov ax, 4c00h										;4ch function of 21 interrupt | end program
 	int 21h												;call 21 interrupt
 
+;------------------------------------------------------------------------------
+; Read key from keyboard, show it on screen, if key is 'Return/Enter' -> return
+; Entry:		SI - offset of buffer in data segment
+; Exit:			Buffer
+; Destroy:		AX, SI
+;------------------------------------------------------------------------------
+InputSymbolsToBuffer	proc							;start procedure
+
+waitForKey:												;<--------------------------------------------------|
+														;01h function of 21 interrupt						|
+	mov ah, 01h											;input the symbol, place it in al and show on screen|
+	int 21h												;call 21 interrupt									|
+														;													|
+	mov ds:[si], al										;ds:[si] = al 	| put symbol in buffer 				|
+	inc si												;si += 1		| shift buffer pointer 				|
+														;													|
+	cmp al, 0dh											;if (al == carriage return) zf = 1					|
+	jne waitForKey										;if (zf != 1) goto waitForKey ----------------------|
+
+	ret													;return function
+	endp												;end function
+;------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+; Check password of correct
+; Entry:		SI - offset of buffer in data segment that ended with '$'
+;				DI - offset of right password
+;				CX - amount of data to compare
+; Exit:			Screen
+; Destroy:		AX
+;------------------------------------------------------------------------------
+Authentication	proc									;start procedure
+
+	repe cmpsb											;while (ds:[si] == es:[di]) si++; / di++;
+	jnz unfortunately									;if (zf != 1) goto unfortunately ---|
+														;									|
+	mov ax, 0900h										;09h function of 21 interrupt		|
+	mov dx, offset GG									;dx = &GG | give access				|
+	int 21h												;call 21 interrupt					|
+	jmp end_access										;goto end_access ---------------|	|
+														;								|	|
+unfortunately:											;<------------------------------|---|
+	mov ax, 0900h										;09h function of 21 interrupt	|
+	mov dx, offset Sry									;dx = &Sry | don't give access	|
+	int 21h												;call 21 interrupt				|
+														;								|
+end_access:												;<------------------------------|
+	ret													;return function
+	endp												;end function
+;------------------------------------------------------------------------------
+
 .data													;data segment
 
-video_segment equ 0b800h								;segment of video memory
-enter_flag 		db 0									 ;flag of enter button
+video_segment 	equ 0b800h								;segment of video memory
+buffer_size 	equ 13d									;size of buffer to inputting symbols
 
-ENDL equ 0dh, 0ah										;next line
-DebugString db 'DebugString is on your screen!', ENDL, '$'
+Password db '123456789abcd'								;right password to get access
+Buffer db buffer_size dup (0)							;initialization of buffer in memory
 
-EOP:													;end of progra
+ENDL equ 0dh, 0ah, '$'									;next line
+StartString db "Hello, hope you did't forget about password!", 	ENDL
+Sry 		db 'Access is not yours!', 							ENDL
+GG			db 'Access is always yours!', 						ENDL
+
+EOP:													;end of program
 end 		Start
