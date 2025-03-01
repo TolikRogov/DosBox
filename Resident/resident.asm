@@ -59,7 +59,7 @@ Start:
 
 New08h 	proc
 
-	push ax bx cx dx si di ds es bp						;save all registers
+	push ax bx cx dx si bp sp di ds es ss cs			;save all registers
 	push cs												;cs in stack
 	pop ds												;ds = cs
 
@@ -70,7 +70,7 @@ New08h 	proc
 	skip_activision:									;<----------------------------------|	|
 														;										|
 	old_08h:											;<--------------------------------------|
-	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
+	pop ds ss es ds di sp bp si dx cx bx ax				;return all registers after interrupt
 	db 0eah												;jump to old procedural handler of 09h interrupt
 	old08ofs dw 0000h									;previous offset
 	old08seg dw 0000h									;in that segment
@@ -88,7 +88,7 @@ New08h 	proc
 
 New09h 	proc
 
-	push ax bx cx dx si di ds es bp						;save all registers
+	push ax bx cx dx si bp sp di ds es ss cs 			;save all registers
 	push cs												;cs in stack
 	pop ds												;ds = cs
 
@@ -106,7 +106,7 @@ New09h 	proc
 	skip_close:											;<------------------------------|	|
 														;									|
 	old:												;<----------------------------------|
-	pop bp es ds di si dx cx bx ax						;return all registers after interrupt
+	pop ds ss es ds di sp bp si dx cx bx ax				;return all registers after interrupt
 	db 0eah												;jump to old procedural handler of 09h interrupt
 	old09ofs dw 0000h									;previous offset
 	old09seg dw 0000h									;in that segment
@@ -376,13 +376,15 @@ DrawString	proc
 ;------------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
-; Calculate values of variables: x_start, y_start, y_string
+; Calculate values of variables: x_start, y_start, y_string, height
 ; Entry:		None
 ; Exit:			None
 ; Destroyed:	AX, BX, DX, BP
 ;------------------------------------------------------------------------------
 
 CalcParam	proc
+
+	mov height, reg_in_frame + 2						;height = reg_in_frame + top line + bottom line
 
 	push ax												;save ax
 	xor ah, ah											;ah = 0
@@ -559,27 +561,31 @@ PrintString	proc
 
 ;------------------------------------------------------------------------------
 
-len 				db 31								;frame row length
+len 				db 9								;frame row length
 height 				db 10								;frame column height
 frame_color 		db 4eh								;frame element color
 
 x_start 			db 0								;x frame start position
 y_start 			db 0								;y frame start position
 y_string 			db 0								;y string start position
-reg_in_frame		equ 8								;amount of registers in frame
+reg_in_frame		equ 12								;amount of registers in frame
 Active				db 0								;frame status
 
 DoubleFrameString 	db 0c9h, 0cdh, 0bbh, 0bah, 020h, 0bah, 0c8h, 0cdh, 0bch
-Buffer dw 31 * 10 dup (0)								;init buffer
+Buffer dw 9 * 14 dup (0)								;init buffer
 
 AXString 			db "ax $"							;registers names
 BXString 			db "bx $"
 CXString 			db "cx $"
 DXString 			db "dx $"
 SIString 			db "si $"
+BPString 			db "bp $"
+SPString 			db "sp $"
 DIString 			db "di $"
 DSString 			db "ds $"
 ESString 			db "es $"
+SSString 			db "ss $"
+CSString 			db "cs $"
 
 EOP:
 end 	Start											;prog's ending
