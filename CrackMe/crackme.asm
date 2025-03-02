@@ -18,8 +18,9 @@ Start:													;Start of program
 	call InputSymbolsToBuffer							;Inputting symbols while it is not CR
 
 	mov si, offset Buffer								;si = &Buffer
-	mov di, offset Password								;di = &Password
 	mov cx, buffer_size									;cx = buffer_size
+	call DJB2											;hash function
+
 	call Authentication									;check password
 
 	mov ax, 4c00h										;4ch function of 21 interrupt | end program
@@ -50,16 +51,14 @@ waitForKey:												;<--------------------------------------------------|
 
 ;------------------------------------------------------------------------------
 ; Check password of correct
-; Entry:		SI - offset of buffer in data segment that ended with '$'
-;				DI - offset of right password
-;				CX - amount of data to compare
+; Entry:		AX - hash value of password
 ; Exit:			Screen
 ; Destroy:		AX
 ;------------------------------------------------------------------------------
 Authentication	proc									;start procedure
 
-	repe cmpsb											;while (ds:[si] == es:[di]) si++; / di++;
-	jnz unfortunately									;if (zf != 1) goto unfortunately ---|
+	cmp ax, Password									;if (ax == Password) zf = 1
+	jne unfortunately									;if (zf != 1) goto unfortunately ---|
 														;									|
 	mov ax, 0900h										;09h function of 21 interrupt		|
 	mov dx, offset GG									;dx = &GG | give access				|
@@ -76,18 +75,40 @@ end_access:												;<------------------------------|
 	endp												;end function
 ;------------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
+; DJB2 hash function
+; Entry:	SI - buffer address
+;			CX - buffer size
+; Exit:		AX
+; Destroy:  AX, CX, SI, BX
+;------------------------------------------------------------------------------
+DJB2	proc											;start procedure
+
+	xor ax, ax 											;ax = 0
+	xor bh, bh											;bh = 0
+
+	calc_hash:											;<----------------------------------|
+		mov bl, ds:[si]									;bl = ds:[si] | symbol of password	|
+		add ax, bx										;ax += bx							|
+		inc si											;si += 1							|
+	loop calc_hash										;-----------------------------------|
+
+	ret													;return function
+	endp												;end function
+;------------------------------------------------------------------------------
+
 .data													;data segment
 
 video_segment 	equ 0b800h								;segment of video memory
 buffer_size 	equ 13d									;size of buffer to inputting symbols
 
-Password db '123456789abcd'								;right password to get access
-Buffer db buffer_size dup (0)							;initialization of buffer in memory
+Buffer 			db buffer_size + 1 dup (0)				;initialization of buffer in memory
+Password 		dw 0367h								;right password hash to get access
 
-ENDL equ 0dh, 0ah, '$'									;next line
-StartString db "Hello, hope you did't forget about password!", 	ENDL
-Sry 		db 'Access is not yours!', 							ENDL
-GG			db 'Access is always yours!', 						ENDL
+ENDL 			equ 0dh, 0ah, '$'						;next line
+StartString 	db "Hello, hope you did't forget about password!", 	ENDL
+Sry 			db 'Access is not yours!', 							ENDL
+GG				db 'Access is always yours!', 						ENDL
 
 EOP:													;end of program
 end 		Start
