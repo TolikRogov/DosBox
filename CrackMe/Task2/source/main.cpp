@@ -5,16 +5,7 @@ int main() {
 	srand(uint(time(NULL)));
 
 	RenderWindow window = {};
-	window.create(VideoMode(MODE_WIDTH, MODE_HEIGHT), "TGF Keygen");
-
-	// RectangleShape main_block_shape(Vector2f(0.f, 0.f));
-	// main_block_shape.setFillColor(Color(MAIN_BLOCK_COLOR));
-	// main_block_shape.setPosition(Vector2f(0.0f, TOP_BLOCK_HEIGHT));
-	// main_block_shape.setSize(Vector2f(float(MODE_WIDTH), float(MAIN_BLOCK_HEIGHT)));
-
-	Texture background_texture = {};
-	if (!background_texture.loadFromFile(""))
-	Sprite background(background_texture);
+	window.create(VideoMode(MODE_WIDTH, MODE_HEIGHT), "TGF CrackYou");
 
 	Font unispace = {};
 	if (!unispace.loadFromFile(UNISPACE))
@@ -25,8 +16,17 @@ int main() {
 
 	main_block_title.setString(MAIN_BLOCK_TITLE);
 	main_block_title.setCharacterSize(MAIN_BLOCK_TITLE_SIZE);
-	main_block_title.setFillColor(Color(255, 255, 255));
+	main_block_title.setFillColor(Color(_MAIN_BLOCK_TITLE_COLOR_));
 	main_block_title.setPosition(Vector2f(MAIN_BLOCK_TITLE_X, MAIN_BLOCK_TITLE_Y));
+
+	Texture background_texture = {};
+	if (!background_texture.loadFromFile(BACKGROUND))
+		return CRACKME_ING_LOAD_ERROR;
+
+	IntRect background_rectangle({0, 0}, {MODE_WIDTH, MODE_HEIGHT});
+	Sprite background(background_texture, background_rectangle);
+
+	Clock clock;
 
     while (window.isOpen())
     {
@@ -44,11 +44,19 @@ int main() {
 			}
         }
 
+		if (clock.getElapsedTime().asMilliseconds() > TIME_TO_UPDATE) {
+			if (background_rectangle.left + int(MODE_WIDTH) == BACKGROUND_FRAMES)
+				background_rectangle.left = 0;
+			else
+				background_rectangle.left += MODE_WIDTH;
+
+			background.setTextureRect(background_rectangle);
+			clock.restart();
+		}
+
         window.clear();
-
-		window.draw(main_block_shape);
+		window.draw(background);
 		window.draw(main_block_title);
-
         window.display();
     }
 
