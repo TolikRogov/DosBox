@@ -3,6 +3,7 @@
 int main() {
 
 	srand(uint(time(NULL)));
+	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
 
 	// Create window
 	RenderWindow window = {};
@@ -11,7 +12,7 @@ int main() {
 	// upload font
 	Font unispace = {};
 	if (!unispace.loadFromFile(UNISPACE))
-		return CRACKME_FONT_LOAD_ERROR;
+		CRACKME_ERROR_CHECK(CRACKME_FONT_LOAD_ERROR);
 
 	// set font to main title
 	Text main_block_title = {};
@@ -26,19 +27,23 @@ int main() {
 	// Background properties
 	Texture background_texture = {};
 	if (!background_texture.loadFromFile(BACKGROUND))
-		return CRACKME_IMG_LOAD_ERROR;
+		CRACKME_ERROR_CHECK(CRACKME_IMG_LOAD_ERROR);
 
 	IntRect background_rectangle({0, 0}, {MODE_WIDTH, MODE_HEIGHT});
 	Sprite background(background_texture, background_rectangle);
 
 	// Button properties
-	Texture button_texture = {};
-  	if (!button_texture.loadFromFile(BUTTON_HOVER_OFF))
-    	return CRACKME_IMG_LOAD_ERROR;
+	Texture button_texture_hover_off = {};
+  	if (!button_texture_hover_off.loadFromFile(BUTTON_HOVER_OFF))
+    	CRACKME_ERROR_CHECK(CRACKME_IMG_LOAD_ERROR);
+
+	Texture button_texture_hover_on = {};
+	if (!button_texture_hover_on.loadFromFile(BUTTON_HOVER_ON))
+    	CRACKME_ERROR_CHECK(CRACKME_IMG_LOAD_ERROR);
 
 	Sprite button_sprite = {};
- 	button_sprite.setPosition(0.0f, 0.0f);
-	button_sprite.setTexture(button_texture);
+ 	button_sprite.setPosition(BUTTON_X, BUTTON_Y);
+	button_sprite.setTexture(button_texture_hover_off);
 	button_sprite.setTextureRect(IntRect({0, 0}, {BUTTON_WIDTH, BUTTON_HEIGHT}));
 
 	Clock clock;
@@ -59,10 +64,34 @@ int main() {
 					Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
 
 					if (button_sprite.getGlobalBounds().contains(mousePosF))
-						button_sprite.setColor(Color(250, 20, 20));
+						button_sprite.setTexture(button_texture_hover_on);
 					else
-						button_sprite.setColor(Color(255, 255, 255));
+						button_sprite.setTexture(button_texture_hover_off);
 
+					break;
+				}
+
+				case Event::MouseButtonPressed: {
+					Vector2i mousePos = Mouse::getPosition(window);
+					Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+					if (button_sprite.getGlobalBounds().contains(mousePosF)) {
+						Hacking data = {COM_FILE, 0, NULL, 0};
+
+						crackme_status = FileInfo(&data);
+						CRACKME_ERROR_MESSAGE(crackme_status);
+
+						data.buffer = (char*)calloc(data.file_size, sizeof(char));
+						if (!data.buffer)
+							CRACKME_ERROR_CHECK(CRACKME_ALLOCATION_ERROR);
+
+						crackme_status = ReadFromFile(&data);
+						CRACKME_ERROR_MESSAGE(crackme_status);
+
+						if (data.buffer) {
+							free(data.buffer);
+							data.buffer = NULL;
+						}
+					}
 					break;
 				}
 
