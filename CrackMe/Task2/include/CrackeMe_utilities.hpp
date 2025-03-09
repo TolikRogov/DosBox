@@ -44,6 +44,8 @@ enum CrackMeStatusCode {
 	CRACKME_FILE_BUF_ERROR,
 	CRACKME_FILE_WRITE_ERROR,
 	CRACKME_NULL_POINTER,
+	CRACKME_SEQ_NOT_FOUND,
+	CRACKME_ALREADY_CRACK,
 };
 
 const wchar_t* CrackMeErrorsMessenger(CrackMeStatusCode status);

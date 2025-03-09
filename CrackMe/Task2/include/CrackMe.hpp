@@ -4,9 +4,18 @@
 
 typedef unsigned char buffer_t;
 
+#define PRINT_TO_STDOUT(...) fprintf(stdout, __VA_ARGS__ "\n");
+#define LINE "===================================================================================================="
+#define PRINT_LINE PRINT_TO_STDOUT(LINE)
+#define PRINT_MESSAGE(...) {			 \
+	PRINT_LINE							\
+	PRINT_TO_STDOUT("\t" __VA_ARGS__)	\
+	PRINT_LINE							\
+}										\
+
 //Crack changes
 #define NEW_JUMP 0x75 // jne
-#define NEW_FLAG 0x31
+#define NEW_FLAG 0x31 // '1'
 
 //File to crack
 #define TASK1_PATH "../Task1/"
