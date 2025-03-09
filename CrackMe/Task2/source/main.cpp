@@ -1,8 +1,6 @@
 #include "CrackMe.hpp"
 
 int main() {
-
-	srand(uint(time(NULL)));
 	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
 
 	// Create window
@@ -46,7 +44,17 @@ int main() {
 	button_sprite.setTexture(button_texture_hover_off);
 	button_sprite.setTextureRect(IntRect({0, 0}, {BUTTON_WIDTH, BUTTON_HEIGHT}));
 
+	// music
+	SoundBuffer background_music = {};
+	if (!background_music.loadFromFile(BG_MUSIC))
+		CRACKME_ERROR_CHECK(CRACKME_MUSIC_LOAD_ERROR);
+
+	Sound bg_sound = {};
+	bg_sound.setBuffer(background_music);
+	bg_sound.play();
+
 	Clock clock;
+	Hacking data = {COM_FILE, 0, NULL, NO_CRACK};
 
     while (window.isOpen())
     {
@@ -75,22 +83,8 @@ int main() {
 					Vector2i mousePos = Mouse::getPosition(window);
 					Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
 					if (button_sprite.getGlobalBounds().contains(mousePosF)) {
-						Hacking data = {COM_FILE, 0, NULL, 0};
-
-						crackme_status = FileInfo(&data);
+						crackme_status = RunCrack(&data);
 						CRACKME_ERROR_MESSAGE(crackme_status);
-
-						data.buffer = (char*)calloc(data.file_size, sizeof(char));
-						if (!data.buffer)
-							CRACKME_ERROR_CHECK(CRACKME_ALLOCATION_ERROR);
-
-						crackme_status = ReadFromFile(&data);
-						CRACKME_ERROR_MESSAGE(crackme_status);
-
-						if (data.buffer) {
-							free(data.buffer);
-							data.buffer = NULL;
-						}
 					}
 					break;
 				}

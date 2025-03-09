@@ -5,7 +5,6 @@
 #include "CrackeMe_utilities.hpp"
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <sys/stat.h>
 using namespace sf;
 
@@ -37,10 +36,14 @@ enum CrackMeStatusCode {
 	CRACKME_NO_ERROR,
 	CRACKME_FONT_LOAD_ERROR,
 	CRACKME_IMG_LOAD_ERROR,
+	CRACKME_MUSIC_LOAD_ERROR,
 	CRACKME_FILE_OPEN_ERROR,
 	CRACKME_FILE_CLOSE_ERROR,
 	CRACKME_ALLOCATION_ERROR,
 	CRACKME_FILE_READ_ERROR,
+	CRACKME_FILE_BUF_ERROR,
+	CRACKME_FILE_WRITE_ERROR,
+	CRACKME_NULL_POINTER,
 };
 
 const wchar_t* CrackMeErrorsMessenger(CrackMeStatusCode status);

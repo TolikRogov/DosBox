@@ -2,7 +2,13 @@
 
 #include "CrackeMe_utilities.hpp"
 
-// File to crack
+typedef unsigned char buffer_t;
+
+//Crack changes
+#define NEW_JUMP 0x75 // jne
+#define NEW_FLAG 0x31
+
+//File to crack
 #define TASK1_PATH "../Task1/"
 #define COM_FILE TASK1_PATH "HACK.COM"
 
@@ -18,6 +24,10 @@
 #define BACKGROUND IMAGES_PATH "background.png"
 #define BUTTON_HOVER_OFF IMAGES_PATH "button_hover_off.png"
 #define BUTTON_HOVER_ON IMAGES_PATH "button_hover_on.png"
+
+//Music segment
+#define MUSIC_PATH DATA_PATH "music/"
+#define BG_MUSIC MUSIC_PATH "RoboCop.mp3"
 
 //Window properties
 const unsigned int MODE_WIDTH 					= 640;
@@ -40,13 +50,23 @@ const unsigned int MAIN_BLOCK_TITLE_SIZE		= 24;
 const unsigned int MAIN_BLOCK_TITLE_X 			= MODE_WIDTH / 2 - strlen(MAIN_BLOCK_TITLE) * MAIN_BLOCK_TITLE_SIZE / 3;
 const unsigned int MAIN_BLOCK_TITLE_Y			= 10;
 
+enum CrackStatus {
+	NO_CRACK,
+	DONE_CRACK,
+};
+
 struct Hacking {
 	const char* file_path;
 	size_t file_size;
 
-	char* buffer;
-	char crack_status;
+	buffer_t* buffer;
+	CrackStatus crack_status;
 };
 
+CrackMeStatusCode RunCrack(Hacking* data);
 CrackMeStatusCode FileInfo(Hacking* data);
 CrackMeStatusCode ReadFromFile(Hacking* data);
+CrackMeStatusCode ChangeBytesInBuffer(Hacking* data);
+CrackMeStatusCode ChangeFlag(Hacking* data, size_t* flag_index);
+CrackMeStatusCode ChangeJump(Hacking* data, size_t* jump_index);
+CrackMeStatusCode WriteToFile(Hacking* data);
