@@ -1,51 +1,55 @@
 #include "CrackMe.hpp"
 
-CrackMeStatusCode RunCrack(Hacking* data) {
-	if (data->crack_status == DONE_CRACK) {
+CrackMeStatusCode RunCrack(Cracker* cracker) {
+	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
+
+	if (cracker->data->crack_status == DONE_CRACK) {
 		PRINT_MESSAGE(YELLOW("WARNING: Crack or file checking for crack has already been! Please, change file!"))
 		return CRACKME_NO_ERROR;
 	}
 
-	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
-
-	crackme_status = FileInfo(data);
+	crackme_status = FileInfo(cracker);
 	CRACKME_ERROR_CHECK(crackme_status);
 
-	data->buffer = (buffer_t*)calloc(data->file_size, sizeof(buffer_t));
-	if (!data->buffer)
+	cracker->data->buffer = (buffer_t*)calloc(cracker->data->file_size, sizeof(buffer_t));
+	if (!cracker->data->buffer)
 		CRACKME_ERROR_CHECK(CRACKME_ALLOCATION_ERROR);
 
-	crackme_status = ReadFromFile(data);
+	crackme_status = ReadFromFile(cracker);
 	CRACKME_ERROR_CHECK(crackme_status);
 
-	crackme_status = ChangeBytesInBuffer(data);
-	if (crackme_status == CRACKME_FILE_WRITE_ERROR)
-		PRINT_MESSAGE(YELLOW("WARNING: writing to the file was cancelled!"))
+	crackme_status = ChangeBytesInBuffer(cracker);
+	if (crackme_status == CRACKME_FILE_WRITE_ERROR) {
+		PRINT_LINE
+		fprintf(stdout, YELLOW("\tWARNING: writing to the file '%s' was cancelled!")"\n", cracker->data->file_path);
+		PRINT_LINE
+	}
 	else {
 		CRACKME_ERROR_CHECK(crackme_status);
-		crackme_status = WriteToFile(data);
+		crackme_status = WriteToFile(cracker);
 		CRACKME_ERROR_CHECK(crackme_status);
 	}
 
-	if (data->buffer) {
-		free(data->buffer);
-		data->buffer = NULL;
+	if (cracker->data->buffer) {
+		free(cracker->data->buffer);
+		cracker->data->buffer = NULL;
 	}
 
 	return CRACKME_NO_ERROR;
 }
 
-CrackMeStatusCode FileInfo(Hacking* data) {
-	FILE* file_to_hack = fopen(data->file_path, "rb");
+CrackMeStatusCode FileInfo(Cracker* cracker) {
+	FILE* file_to_hack = fopen(cracker->data->file_path, "rb");
 	if (!file_to_hack)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_OPEN_ERROR);
 
-	PRINT_MESSAGE(GREEN("The file was opened!"))
+	PRINT_LINE
+	fprintf(stdout, GREEN("\tThe file '%s' was opened!")"\n", cracker->data->file_path);
+	PRINT_LINE
 
-	PRINT_TO_STDOUT(LINE)
-
+	PRINT_LINE
 	struct stat file_info = {};
-	stat(data->file_path, &file_info);
+	stat(cracker->data->file_path, &file_info);
 
 	struct tm * timeinfo;
     char buff[20];
@@ -58,10 +62,9 @@ CrackMeStatusCode FileInfo(Hacking* data) {
     strftime(buff, 20, "%b %d %H:%M", timeinfo);
 	fprintf(stdout, BLUE("%30s: ") YELLOW("%s")"\n", "Last file modification time", buff);
 
-	data->file_size = (size_t)file_info.st_size;
+	cracker->data->file_size = (size_t)file_info.st_size;
 	fprintf(stdout, BLUE("%30s: ") YELLOW("%lld") BLUE(" bytes")"\n", "File size", file_info.st_size);
-
-	PRINT_TO_STDOUT(LINE)
+	PRINT_LINE
 
 	if (fclose(file_to_hack))
 		CRACKME_ERROR_CHECK(CRACKME_FILE_CLOSE_ERROR);
@@ -69,7 +72,9 @@ CrackMeStatusCode FileInfo(Hacking* data) {
 	return CRACKME_NO_ERROR;
 }
 
-CrackMeStatusCode ReadFromFile(Hacking* data) {
+CrackMeStatusCode ReadFromFile(Cracker* cracker) {
+	Hacking* data = cracker->data;
+
 	FILE* file_to_hack = fopen(data->file_path, "rb");
 	if (!file_to_hack)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_OPEN_ERROR);
@@ -77,10 +82,12 @@ CrackMeStatusCode ReadFromFile(Hacking* data) {
 	if (fread(data->buffer, sizeof(buffer_t), data->file_size, file_to_hack) != data->file_size)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_READ_ERROR);
 
-	PRINT_MESSAGE(GREEN("Reading from the file was successful"))
+	PRINT_LINE
+	fprintf(stdout, GREEN("\tReading from the file '%s' was successful")"\n", cracker->data->file_path);
+	PRINT_LINE
 
 #ifdef _DEBUG_
-	PRINT_TO_STDOUT(LINE)
+	PRINT_LINE
 	for (size_t i = 0; i < data->file_size; i++) {
 		if (i % 8 == 0)
 			fprintf(stdout, "%.8zx: ", (unsigned long)i);
@@ -91,7 +98,7 @@ CrackMeStatusCode ReadFromFile(Hacking* data) {
 			fprintf(stdout, "\n");
 	}
 	fprintf(stdout, "\n");
-	PRINT_TO_STDOUT(LINE)
+	PRINT_LINE
 #endif
 
 	if (fclose(file_to_hack))
@@ -100,54 +107,27 @@ CrackMeStatusCode ReadFromFile(Hacking* data) {
 	return CRACKME_NO_ERROR;
 }
 
-CrackMeStatusCode ChangeBytesInBuffer(Hacking* data) {
+CrackMeStatusCode ChangeBytesInBuffer(Cracker* cracker) {
+	Hacking* data = cracker->data;
 	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
 
 	FILE* file_to_hack = fopen(data->file_path, "rb");
 	if (!file_to_hack)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_OPEN_ERROR);
 
-	size_t flag_index = 0;
-	enum FlagStatus{FLAG_NOT_CHANGED, FLAG_CHANGED} flag_status = FLAG_CHANGED;
-	crackme_status = ChangeFlag(data, &flag_index);
-	if (crackme_status == CRACKME_ALREADY_CRACK ||
-		crackme_status == CRACKME_SEQ_NOT_FOUND)
-		flag_status = FLAG_NOT_CHANGED;
-	else
-		CRACKME_ERROR_CHECK(crackme_status);
-
-	size_t jump_index = 0;
-	enum JumpStatus{JUMP_NOT_CHANGED, JUMP_CHANGED} jump_status = JUMP_CHANGED;
-	crackme_status = ChangeJump(data, &jump_index);
-	if (crackme_status == CRACKME_ALREADY_CRACK ||
-		crackme_status == CRACKME_SEQ_NOT_FOUND)
-		jump_status = JUMP_NOT_CHANGED;
-	else
-		CRACKME_ERROR_CHECK(crackme_status);
+	crackme_status = AppliedMods(cracker);
+	CRACKME_ERROR_CHECK(crackme_status);
 
 	crackme_status = CRACKME_FILE_WRITE_ERROR;
-	if (jump_status || flag_status) {
-		PRINT_TO_STDOUT(LINE)
-		for (size_t i = 0; i < data->file_size; i++) {
-			if (i % 8 == 0)
-				fprintf(stdout, "%.8zx: ", (unsigned long)i);
-			if ((i == flag_index && flag_status) || (i == jump_index && jump_status))
-				fprintf(stdout, GREEN("%.2x"), data->buffer[i]);
-			else if ((i == flag_index && !flag_status) || (i == jump_index && !jump_status))
-				fprintf(stdout, YELLOW("%.2x"), data->buffer[i]);
-			else
-				fprintf(stdout, "%.2x", data->buffer[i]);
-			if ((i + 1) % 2 == 0)
-				fprintf(stdout, " ");
-			if ((i + 1) % 8 == 0)
-				fprintf(stdout, "\n");
-		}
+	if (cracker->status) {
+		PRINT_LINE
+		PrintBytesMap(cracker);
 		fprintf(stdout, "\n");
-		PRINT_TO_STDOUT(LINE)
+		PRINT_LINE
 		crackme_status = CRACKME_NO_ERROR;
 	}
 
-	data->crack_status = DONE_CRACK;
+	cracker->data->crack_status = DONE_CRACK;
 
 	if (fclose(file_to_hack))
 		CRACKME_ERROR_CHECK(CRACKME_FILE_CLOSE_ERROR);
@@ -155,12 +135,65 @@ CrackMeStatusCode ChangeBytesInBuffer(Hacking* data) {
 	return crackme_status;
 }
 
-CrackMeStatusCode ChangeFlag(Hacking* data, size_t* flag_index) {
+CrackMeStatusCode PrintBytesMap(Cracker* cracker) {
+	Hacking* data = cracker->data;
+
+	for (size_t i = 0; i < data->file_size; i++) {
+		int status = GetModStatusByIndex(cracker->mods, i);
+		if (i % 8 == 0)
+			fprintf(stdout, "%.8zx: ", (unsigned long)i);
+		if (status > 0)
+			fprintf(stdout, GREEN("%.2x"), data->buffer[i]);
+		else if (status == 0)
+			fprintf(stdout, YELLOW("%.2x"), data->buffer[i]);
+		else
+			fprintf(stdout, "%.2x", data->buffer[i]);
+		if ((i + 1) % 2 == 0)
+			fprintf(stdout, " ");
+		if ((i + 1) % 8 == 0)
+			fprintf(stdout, "\n");
+	}
+
+	return CRACKME_NO_ERROR;
+}
+
+int GetModStatusByIndex(Modification* mods, size_t index) {
+	for (size_t i = 0; i < MODS_AMOUNT; i++) {
+		if (mods[i].index == index)
+			return (int)mods[i].status;
+	}
+	return -1;
+}
+
+CrackMeStatusCode AppliedMods(Cracker* cracker) {
+	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
+	Hacking* data = cracker->data;
+	Modification* mods = cracker->mods;
+
+	for (size_t i = 0; i < MODS_AMOUNT; i++) {
+		crackme_status = mods[i].function(data, &mods[i].index);
+		CRACKME_ERROR_CHECK(crackme_status);
+		PRINT_LINE
+		if (!(mods[i].index))
+			fprintf(stdout, RED("\tERROR: subsequence for %s not found!")"\n", mods[i].name);
+		if ((mods[i].index) && data->buffer[(mods[i].index)] == mods[i].new_value)
+			fprintf(stdout, YELLOW("\tWARNING: %s has already been changed!")"\n", mods[i].name);
+		if (mods[i].index && data->buffer[mods[i].index] != mods[i].new_value) {
+			fprintf(stdout, GREEN("\tDestination was found in the file and %s was changed!")"\n", mods[i].name);
+			data->buffer[mods[i].index] = mods[i].new_value;
+			mods[i].status = mods[i].MOD_CHANGED;
+		}
+		PRINT_LINE
+		cracker->status += (size_t)mods[i].status;
+	}
+
+	return CRACKME_NO_ERROR;
+}
+
+CrackMeStatusCode FindFlag(Hacking* data, size_t* flag_index) {
 
 	if (!data || !flag_index)
 		CRACKME_ERROR_CHECK(CRACKME_NULL_POINTER);
-
-	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
 
 	for (size_t i = 0; i < data->file_size - 3; i++) {
 		if (data->buffer[i] 	== 0x00 && data->buffer[i + 1] == 0x61 &&
@@ -171,28 +204,13 @@ CrackMeStatusCode ChangeFlag(Hacking* data, size_t* flag_index) {
 		}
 	}
 
-	if (!*flag_index) {
-		PRINT_MESSAGE(RED("ERROR: subsequence for flag not found!"))
-		crackme_status = CRACKME_SEQ_NOT_FOUND;
-	}
-	if (*flag_index && data->buffer[*flag_index] == NEW_FLAG) {
-		PRINT_MESSAGE(YELLOW("WARNING: flag has already been changed!"))
-		crackme_status = CRACKME_ALREADY_CRACK;
-	}
-	if (*flag_index && data->buffer[*flag_index] != NEW_FLAG) {
-		PRINT_MESSAGE(GREEN("Flag was found in the file and changed!"))
-		data->buffer[*flag_index] = NEW_FLAG;
-	}
-
-	return crackme_status;
+	return CRACKME_NO_ERROR;
 }
 
-CrackMeStatusCode ChangeJump(Hacking* data, size_t* jump_index) {
+CrackMeStatusCode FindJump(Hacking* data, size_t* jump_index) {
 
 	if (!data || !jump_index)
 		CRACKME_ERROR_CHECK(CRACKME_NULL_POINTER);
-
-	CrackMeStatusCode crackme_status = CRACKME_NO_ERROR;
 
 	for (size_t i = 0; i < data->file_size - 5; i++) {
 		if (data->buffer[i] 	== 0xA1 && data->buffer[i + 1] == 0x02 &&
@@ -204,24 +222,12 @@ CrackMeStatusCode ChangeJump(Hacking* data, size_t* jump_index) {
 		}
 	}
 
-	if (!*jump_index) {
-		PRINT_MESSAGE(RED("ERROR: subsequence for flag not found!"))
-		crackme_status = CRACKME_SEQ_NOT_FOUND;
-	}
-	if (*jump_index && data->buffer[*jump_index] == NEW_JUMP) {
-		PRINT_MESSAGE(YELLOW("WARNING: flag has already been changed!"))
-		crackme_status = CRACKME_ALREADY_CRACK;
-	}
-	if (*jump_index && data->buffer[*jump_index] != NEW_JUMP) {
-		fprintf(stdout, GREEN("\tJump was found in FILE '%s' and changed!")"\n", data->file_path);
-		data->buffer[*jump_index] = NEW_JUMP;
-	}
-	fprintf(stdout, "======================================================================""\n");
-
-	return crackme_status;
+	return CRACKME_NO_ERROR;
 }
 
-CrackMeStatusCode WriteToFile(Hacking* data) {
+CrackMeStatusCode WriteToFile(Cracker* cracker) {
+	Hacking* data = cracker->data;
+
 	FILE* file_to_hack = fopen(data->file_path, "wb");
 	if (!file_to_hack)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_OPEN_ERROR);
@@ -229,9 +235,9 @@ CrackMeStatusCode WriteToFile(Hacking* data) {
 	if (fwrite(data->buffer, sizeof(buffer_t), data->file_size, file_to_hack) != data->file_size)
 		CRACKME_ERROR_CHECK(CRACKME_FILE_WRITE_ERROR);
 
-	fprintf(stdout, "======================================================================""\n");
-	fprintf(stdout, GREEN("\tWriting to FILE '%s' was successful")"\n", data->file_path);
-	fprintf(stdout, "======================================================================""\n");
+	PRINT_LINE
+	fprintf(stdout, GREEN("\tWriting to the file '%s' was successful")"\n", cracker->data->file_path);
+	PRINT_LINE
 
 	if (fclose(file_to_hack))
 		CRACKME_ERROR_CHECK(CRACKME_FILE_CLOSE_ERROR);

@@ -44,6 +44,16 @@ int main() {
 	button_sprite.setTexture(button_texture_hover_off);
 	button_sprite.setTextureRect(IntRect({0, 0}, {BUTTON_WIDTH, BUTTON_HEIGHT}));
 
+	// Button text
+	Text button_text = {};
+	button_text.setFont(unispace);
+
+	// title properties
+	button_text.setString(BUTTON_TEXT);
+	button_text.setCharacterSize(BUTTON_TEXT_SIZE);
+	button_text.setFillColor(Color(_BUTTON_TEXT_COLOR_));
+	button_text.setPosition(Vector2f(BUTTON_TEXT_X, BUTTON_TEXT_Y));
+
 	// music
 	SoundBuffer background_music = {};
 	if (!background_music.loadFromFile(BG_MUSIC))
@@ -55,6 +65,8 @@ int main() {
 
 	Clock clock;
 	Hacking data = {COM_FILE, 0, NULL, NO_CRACK};
+	Cracker cracker	= {&data, {{.name = "flag", .index = 0, .new_value = NEW_FLAG, .function = FindFlag},
+							   {.name = "jump", .index = 0, .new_value = NEW_JUMP, .function = FindJump}}};
 
     while (window.isOpen())
     {
@@ -71,10 +83,14 @@ int main() {
 					Vector2i mousePos = Mouse::getPosition(window);
 					Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
 
-					if (button_sprite.getGlobalBounds().contains(mousePosF))
+					if (button_sprite.getGlobalBounds().contains(mousePosF)) {
 						button_sprite.setTexture(button_texture_hover_on);
-					else
+						button_text.setFillColor(Color(_BUTTON_TEXT_COLOR_HOVER_));
+					}
+					else {
 						button_sprite.setTexture(button_texture_hover_off);
+						button_text.setFillColor(Color(_BUTTON_TEXT_COLOR_));
+					}
 
 					break;
 				}
@@ -83,7 +99,7 @@ int main() {
 					Vector2i mousePos = Mouse::getPosition(window);
 					Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
 					if (button_sprite.getGlobalBounds().contains(mousePosF)) {
-						crackme_status = RunCrack(&data);
+						crackme_status = RunCrack(&cracker);
 						CRACKME_ERROR_MESSAGE(crackme_status);
 					}
 					break;
@@ -110,6 +126,7 @@ int main() {
 		window.draw(background);
 		window.draw(main_block_title);
 		window.draw(button_sprite);
+		window.draw(button_text);
         window.display();
     }
 

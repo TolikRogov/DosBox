@@ -13,9 +13,8 @@ typedef unsigned char buffer_t;
 	PRINT_LINE							\
 }										\
 
-//Crack changes
-#define NEW_JUMP 0x75 // jne
-#define NEW_FLAG 0x31 // '1'
+#define NEW_JUMP 0x75 //jne
+#define NEW_FLAG 0x31 //'1'
 
 //File to crack
 #define TASK1_PATH "../Task1/"
@@ -52,12 +51,22 @@ const unsigned int BUTTON_HEIGHT				= 63;
 const unsigned int BUTTON_X						= int((MODE_WIDTH - BUTTON_WIDTH) / 2);
 const unsigned int BUTTON_Y						= int(MODE_HEIGHT - 3 * BUTTON_HEIGHT / 2);
 
+//Button text
+#define _BUTTON_TEXT_COLOR_ 255, 255, 255
+#define _BUTTON_TEXT_COLOR_HOVER_ 52, 252, 52
+const char BUTTON_TEXT[]						= "Run";
+const unsigned int BUTTON_TEXT_SIZE				= 18;
+const unsigned int BUTTON_TEXT_X				= int((BUTTON_X + BUTTON_X + BUTTON_WIDTH) / 2) - int(strlen(BUTTON_TEXT) * BUTTON_TEXT_SIZE * 2 / 3 / 2);
+const unsigned int BUTTON_TEXT_Y 				= int((BUTTON_Y + BUTTON_Y + BUTTON_HEIGHT) / 2) - int(BUTTON_TEXT_SIZE * 2 / 3);
+
 //Main block tittle properties
 #define _MAIN_BLOCK_TITLE_COLOR_ 255, 255, 255
 const char MAIN_BLOCK_TITLE[]					= "CrackYou";
 const unsigned int MAIN_BLOCK_TITLE_SIZE		= 24;
 const unsigned int MAIN_BLOCK_TITLE_X 			= MODE_WIDTH / 2 - strlen(MAIN_BLOCK_TITLE) * MAIN_BLOCK_TITLE_SIZE / 3;
 const unsigned int MAIN_BLOCK_TITLE_Y			= 10;
+
+const size_t MODS_AMOUNT 						= 2;
 
 enum CrackStatus {
 	NO_CRACK,
@@ -72,10 +81,29 @@ struct Hacking {
 	CrackStatus crack_status;
 };
 
-CrackMeStatusCode RunCrack(Hacking* data);
-CrackMeStatusCode FileInfo(Hacking* data);
-CrackMeStatusCode ReadFromFile(Hacking* data);
-CrackMeStatusCode ChangeBytesInBuffer(Hacking* data);
-CrackMeStatusCode ChangeFlag(Hacking* data, size_t* flag_index);
-CrackMeStatusCode ChangeJump(Hacking* data, size_t* jump_index);
-CrackMeStatusCode WriteToFile(Hacking* data);
+typedef CrackMeStatusCode (*mod_func_t) (Hacking*, size_t*);
+
+struct Modification {
+	const char* name;
+	size_t index;
+	enum ModStatus{MOD_NOT_CHANGED, MOD_CHANGED} status = MOD_NOT_CHANGED;
+	mod_func_t function;
+	buffer_t new_value;
+};
+
+struct Cracker {
+	Hacking* data;
+	Modification mods[MODS_AMOUNT];
+	size_t status;
+};
+
+CrackMeStatusCode RunCrack(Cracker* cracker);
+CrackMeStatusCode FileInfo(Cracker* cracker);
+CrackMeStatusCode ReadFromFile(Cracker* cracker);
+CrackMeStatusCode ChangeBytesInBuffer(Cracker* cracker);
+CrackMeStatusCode AppliedMods(Cracker* cracker);
+CrackMeStatusCode PrintBytesMap(Cracker* cracker);
+int GetModStatusByIndex(Modification* mods, size_t index);
+CrackMeStatusCode FindFlag(Hacking* data, size_t* flag_index);
+CrackMeStatusCode FindJump(Hacking* data, size_t* jump_index);
+CrackMeStatusCode WriteToFile(Cracker* cracker);
